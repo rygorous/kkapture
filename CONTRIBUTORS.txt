@@ -1,0 +1,11 @@
+OFFICIAL PROJECT HOMEPAGE:
+  http://www.farbrausch.de/~fg/kkapture
+  
+MAINTAINER AND PROJECT LEAD:
+  Fabian "ryg/farbrausch" Giesen
+  http://www.farbrausch.de/~fg
+  
+CONTRIBUTORS:
+  Tammo "kb" Hinrichs               Parts of the D3D8 code in v0.02
+  Bernhard "bartman" Wodok          AVI splitting, resolution bugfix in v0.04
+  Joern "manx" Heusipp              waveout-bugfix in v0.04

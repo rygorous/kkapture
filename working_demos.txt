@@ -1,0 +1,94 @@
+checked with new timing (alphabetical order):
+- 00101010/FAN
+- 195/95/plastic
+- a deepness in the sky/mfx (synchronization slightly off)
+- above/lkcc
+- abstinens/keyboarders (use auto skip)
+- aether/mfx
+- animal attraction/asd
+- ante dominum/traction
+- assembly 04 invitation/moppi productions
+- bleam/lionhead
+- candystall/pittsburgh stallers vs. loonies
+- che guevara/fairlight
+- coma (on the dancefloor)/cocoon
+- contour/tbl (sounds sucks)
+- dead ringer/fairlight
+- death in vegas/calodox (sound issues on some machines)
+- don't stop/portal process
+- f07/conspiracy
+- fairytale/traction+brainstorm
+- final audition/plastic
+- first offence/parapete
+- fr-08: the product/farbrausch (use "skip silence at start")
+- fr-025: the popular demo/farbrausch
+- fr-038: theta/farbrausch
+- fr-041: debris/farbrausch
+- frameskool/equinox (use auto skip)
+- fresnel 2/kolor
+- galiwm/ümlaüt design
+- heaven 7/exceed
+- insert coins/traction
+- libgov/kolor
+- liquid lust/fairlight
+- mega hitler expansion pack/boozoholics
+- melrose space/threestate
+- metamorf/satori
+- monorail/bypass+black maiden
+- moral hard candy/blasphemy (use auto skip)
+- mupe/playpsyco (use auto skip)
+- nature v2.0/threepixels
+- ninja in a box/tpolm
+- noumenon/andromeda (use auto skip)
+- blockbuster/outracks
+- panjabmoore meets 007 again/calodox
+- perfect love/lkcc+bauknecht
+- planet loop/madwizards+nahkolor (use "enable automatic frameskip on timeout")
+- planet risk/asd
+- pluxity/unik (use fullscreen version, press CTRL-BREAK after the window has closed)
+- protozoa/kewlers
+- r08028/threepixels+stravaganza
+- raw confessions/cocoon
+- resonance/portal process
+- sandbox punks/cocoon
+- sonnet/threestate (use auto skip)
+- square/pulse (win32 version)
+- structure/ümlaüt design
+- structure 2: sequence/ümlaüt design
+- sts-03: aeon flux/synesthetics
+- summer encounter/outracks
+- tokyo/xplsv+roterfleck
+- track one/fairlight (turn on "fairlight hack")
+- trocken/bauknecht
+- variform/kewlers
+- weird in a strange way/loonies
+- wonder/sunflower
+- xmix 2004/mfx+kewlers
+- zilog/sunflower (win32 version)
+- zyprexa/bauknecht
+
+not working with new timing (alphabetical order):
+- dead cells/haujobb (disable "force sleeps to take one frame", use "skip silence at start")
+- dead flowers/haujobb (disable "force sleeps to take one frame", use "skip silence at start")
+- funkkin/haujobb (disable "force sleeps to take one frame", use "skip silence at start")
+- the nonstop schlachthaus experience/speckdrumm (sound fucked up)
+
+not yet checked with new timing code, working with older timing (alphabetical order):
+- antimoney/3state
+- arise/stravaganza
+- death and taxes/fairlight
+- defrost/unik
+- fr-019: poem to a horse/farbrausch
+- please the cookie thing/aardbei
+- spectrum/ümlaüt design
+- sts-04: instant zen/synesthetics
+
+checked and working with problems:
+
+checked and not working:
+- the nonstop ibiza experience/orange (crashes after fractals part for no discernible reason)
+- voidspace/woorlic (uses GDI BitBlt for rendering, not currently supported)
+- abcdemo/the project (uses GDI for rendering)
+- fall equals winter/replay (uses GDI for rendering)
+- sprite-o-mat/alcatraz (hangs on first frame, presumably due to problems with kkapture sound code)
+- leitmotiv/lunix (extremely weird ddraw code that doesn't work with kkapture active and shouldn't work without kkapture active, either)

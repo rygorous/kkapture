@@ -1,0 +1,175 @@
+/* kkapture: intrusive demo video capturing.
+ * Copyright (c) 2005-2006 Fabian "ryg/farbrausch" Giesen.
+ *
+ * This program is free software; you can redistribute and/or modify it under
+ * the terms of the Artistic License, Version 2.0beta5, or (at your opinion)
+ * any later version; all distributions of this program should contain this
+ * license in a file named "LICENSE.txt".
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT UNLESS REQUIRED BY
+ * LAW OR AGREED TO IN WRITING WILL ANY COPYRIGHT HOLDER OR CONTRIBUTOR
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
+ * OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+ * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+// Microsoft Visual C++ generated resource script.
+//
+#include "resource.h"
+
+#define APSTUDIO_READONLY_SYMBOLS
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 2 resource.
+//
+#include "windows.h"
+
+#define IDC_STATIC              (-1)     // all static controls
+
+/////////////////////////////////////////////////////////////////////////////
+#undef APSTUDIO_READONLY_SYMBOLS
+
+/////////////////////////////////////////////////////////////////////////////
+// English (U.S.) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
+#ifdef _WIN32
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+#endif //_WIN32
+
+#ifdef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// TEXTINCLUDE
+//
+
+1 TEXTINCLUDE 
+BEGIN
+    "resource.h\0"
+END
+
+2 TEXTINCLUDE 
+BEGIN
+    "#include ""afxres.h""\r\n"
+    "\0"
+END
+
+3 TEXTINCLUDE 
+BEGIN
+    "\r\n"
+    "\0"
+END
+
+#endif    // APSTUDIO_INVOKED
+
+#endif    // English (U.S.) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////////////
+// Neutral (Sys. Default) resources
+
+#if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_NEUSD)
+#ifdef _WIN32
+LANGUAGE LANG_NEUTRAL, SUBLANG_SYS_DEFAULT
+#pragma code_page(1252)
+#endif //_WIN32
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog
+//
+
+IDD_MAINWIN DIALOGEX 0, 0, 258, 251
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
+    WS_SYSMENU
+CAPTION ".kkapture 0.08 beta"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "kkapture!",IDOK,149,230,50,14
+    PUSHBUTTON      "Exit",IDCANCEL,201,230,50,14
+    EDITTEXT        IDC_DEMO,51,7,146,13,ES_AUTOHSCROLL
+    LTEXT           "Demo:",IDC_STATIC,9,9,22,8
+    PUSHBUTTON      "Browse...",IDC_BDEMO,201,7,50,13
+    EDITTEXT        IDC_ARGUMENTS,51,23,146,13,ES_AUTOHSCROLL
+    LTEXT           "Arguments:",IDC_STATIC,9,25,38,8
+    EDITTEXT        IDC_TARGET,51,39,146,13,ES_AUTOHSCROLL
+    LTEXT           "Target:",IDC_STATIC,9,41,25,8
+    PUSHBUTTON      "Browse...",IDC_BTARGET,201,39,50,13
+    LTEXT           "Frame rate:",IDC_STATIC,10,57,39,8
+    EDITTEXT        IDC_FRAMERATE,51,55,31,13,ES_AUTOHSCROLL
+    LTEXT           "Encoder:",IDC_STATIC,95,57,28,8
+    COMBOBOX        IDC_ENCODER,130,55,121,100,CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_TABSTOP
+    GROUPBOX        "AVI Encoding Options",IDC_STATIC,7,73,244,26
+    LTEXT           "Video Codec:",IDC_VIDEOCODEC,14,84,176,8
+    PUSHBUTTON      "Pick...",IDC_VCPICK,214,82,30,12
+    GROUPBOX        "Tweaking",IDC_STATIC,7,103,244,61
+    CONTROL         "Capture Video",IDC_VCAPTURE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,14,114,61,10
+    CONTROL         "Capture Audio",IDC_ACAPTURE,"Button",BS_AUTOCHECKBOX | 
+                    WS_TABSTOP,14,126,62,10
+    CONTROL         "Skip digital silence at start",IDC_SKIPSILENCE,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,121,114,99,10
+    CONTROL         "Make Sleep() last one frame",IDC_SLEEPLAST,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,121,126,105,10
+    CONTROL         "New startup interception",IDC_NEWINTERCEPT,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,14,138,95,10
+    CONTROL         "BASS latency (aka Fairlight) hack",IDC_FAIRLIGHTHACK,"Button",
+                    BS_AUTOCHECKBOX | WS_TABSTOP,121,138,120,10
+    CONTROL         "Power down on completion",IDC_POWERDOWN,"Button",BS_AUTOCHECKBOX |
+                    WS_TABSTOP,14,150,120,10
+    CONTROL         "Separate encoder thread (BETA)",IDC_ENCODERTHREAD,"Button",BS_AUTOCHECKBOX |
+                    WS_TABSTOP,121,150,120,10
+    GROUPBOX        "Auto-skip",IDC_STATIC,7,167,244,57
+    CONTROL         "Enable automatic frameskip on timeout",IDC_AUTOSKIP,
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,178,150,10
+    LTEXT           "Initial frame timeout (seconds):",IDC_STATIC,
+                    14,192,140,8
+    EDITTEXT        IDC_FIRSTFRAMETIMEOUT,130,190,31,13,ES_AUTOHSCROLL
+    LTEXT           "Other frames timeout (seconds):",IDC_STATIC,
+                    14,208,140,8
+    EDITTEXT        IDC_OTHERFRAMETIMEOUT,130,206,31,13,ES_AUTOHSCROLL
+END
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
+// DESIGNINFO
+//
+
+#ifdef APSTUDIO_INVOKED
+GUIDELINES DESIGNINFO 
+BEGIN
+    IDD_MAINWIN, DIALOG
+    BEGIN
+        LEFTMARGIN, 7
+        RIGHTMARGIN, 251
+        TOPMARGIN, 7
+        BOTTOMMARGIN, 160
+    END
+END
+#endif    // APSTUDIO_INVOKED
+
+#endif    // Neutral (Sys. Default) resources
+/////////////////////////////////////////////////////////////////////////////
+
+
+
+#ifndef APSTUDIO_INVOKED
+/////////////////////////////////////////////////////////////////////////////
+//
+// Generated from the TEXTINCLUDE 3 resource.
+//
+
+
+/////////////////////////////////////////////////////////////////////////////
+#endif    // not APSTUDIO_INVOKED
+

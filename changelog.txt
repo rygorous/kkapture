@@ -1,0 +1,99 @@
+version 0.08:
+* "frame rate" edit control now supports arbitrary positive decimal ("12.3456") and fractional ("60000/1001") framerates
+
+version 0.07:
+* "frame timed out" now mentions *which* frame was skipped (if you want to check whether the video is fine or if it causes problems)
+* if kkapture is being debugged, main.cpp now gives you time to attach the debugger to the target demo aswell.
+  (this is the deluxe version of a hack i've been using for ages - thought it might be useful for others trying to debug, too :)
+* fixed some bugs in the cleanup code that may have caused crashes after recording was complete.
+* waveOutGetPosition now even accepts wrong size specifications for MMTIME struct as long as they're big enough (helps candystall)
+* ddraw code temp surface handling should now be more stable (helps with moral hard candy)
+* seeding of all timers now synchronized. helps with demos that mix timing values returned from independent sources (not a good idea!!!).
+  in any case, fixes problems with ante dominum.
+* "power down after completion" switch
+
+version 0.06b:
+* now default to vfw video encoder on new installations.
+* "fairlight hack" switch now explicit due to request - turn it on for track one and possibly other flt demos, otherwise leave it off.
+  (was implicitly on in all versions from 0.05 upwards)
+* more new startup instrumentation fixes (yaay!)
+
+version 0.06:
+* magic exit key (ctrl+break) improved: now uses lowlevel hook, should always work now.
+* d3d8 capture fixes: r08028, nature v2.0 work now.
+* vfw .avi writer can now also handle format changes while the demo is running
+* should now work with demos that use FMODEx: at least first offence works fine now.
+* now automatically advances time if frames take too long.
+  fixes a LOT of demos that do busy waits somewhere, including:
+  - frameskool by equinox
+  - mupe by playpsyco
+  - abstinens by keyboards
+  - noumenon by andromeda
+  and probably a lot of other demos too.
+  
+  how to use: check "Enable automatic frameskip on timeout".
+  the two timeout values define how much time the application has to render 
+  the first/subsequent frames; if it takes longer, kkapture will skip a 
+  frame and write a log message. lower timeouts mean faster kkapturing for
+  apps that explicitly perform waits every frame, but the lower you set those
+  values, the higher the risk that kkapture will drop a frame just because
+  rendering took a tad longer than expected. so be careful!
+
+version 0.05b:
+* IDirectSoundBuffer::SetFrequency handling fixed (affects onwards, 2^5 by traction)
+* debug force-windowed code for d3d9 removed :)
+
+version 0.05:
+* small bugfix in dshow video encoder (thanks malc)
+* "new startup instrumentation" button now actually does something :)
+* startup instrumentation code now less picky about executable files
+* startup instrumentation now works when first instr. is call/jmp (helps with several demos)
+* added dc/rendering context tracking for opengl (fixes problem with animal attraction)
+* synchronization policy changed in dsound code (fixes problems with mega hilter expansion pack, maybe some threading issues too?)
+* old fallback gdi capture code removed (not required anymore and it never worked properly anyway)
+
+version 0.04:
+* switched to visual c++ 2005 express edition
+* "new startup interception" that works on 64bit host machines (always on on 64bit, default off on 32bit)
+* kkapturing on 64bit host machines works now
+* kkapture is now under the artistic license v2.0beta5
+* small waveout code fix by manx included (thanks)
+* automatic segmenting code for avi-vfw encoder by bartman included (thanks to you too :)
+* automatically disables VSync during recording for most supported APIs (improves capturing speed somewhat)
+* basic SetTimer support (i'm not particularly happy with it)
+* improved resolution determination for opengl demos
+* magic exit key: press ctrl+break to safely abort a capture.
+* writes (approximate) capturing frame rate on exit
+* small fix in doneTiming() to make sure no waits are currently active when timing is deinitialized
+* improvements in d3d8/9 reference handling code
+* support for demos that initialize/deinitialize the graphics API several times
+
+version 0.04alpha:
+* some performance improvements for directdraw capturing
+* several bugfixes
+* new directshow-based avi writer, currently the only one available (0.04 final will have both the old and new avi writer)
+* automatic audio resampling (required for dshow, currently converts everything to 16bit 44.1kHz stereo)
+
+version 0.03:
+* waveout capturing finally works (now that was one stupid bug)
+* directdraw/old d3d support (both software and hardware)
+* kkapture now sets the executables' directory as current working dir before starting
+* "skip silence" option added (required for e.g. fr-08); currently only works for
+  directsound
+* "make sleeps last one frame" option added (required for some old BASS and FMOD
+  versions to work correctly)
+* the .bmp/.wav writer now compensates for frames at the beginning without sound
+* capture audio/capture video flags
+
+version 0.02:
+* direct xvid/divx encoding works now.
+* windowed capture support for both opengl and d3d - beware, some demos do not use correct window sizes in windowed mode, so you get e.g. a 630x472 capture for a 640x480 demo - most video codecs don't like sizes that aren't multiples of 4.
+* opengl capturing bugfix - on swapbuffers(), frames were accidentially advanced twice.
+* some QueryPerformanceCounter-related fixes.
+* vastly improved Direct3D9 capture speed.
+* Direct3D8 support (co-written by kb/farbrausch).
+* .bmp/.wav output added (uncompressed highres captures easily hit the avifile 4gb limit).
+* lots of tiny fixes here and there. 
+
+version 0.01:
+* initial release; still missing d3d8, ddraw support, waveout completely untested. 
