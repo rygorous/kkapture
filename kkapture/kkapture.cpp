@@ -113,7 +113,7 @@ static void LoadSettingsFromRegistry()
   Params.VideoCodec = RegQueryDWord(hk,_T("AVIVideoCodec"),mmioFOURCC('D','I','B',' '));
   Params.VideoQuality = RegQueryDWord(hk,_T("AVIVideoQuality"),ICQUALITY_DEFAULT);
   Params.NewIntercept = RegQueryDWord(hk,_T("NewIntercept"),0);
-  Params.FairlightHack = RegQueryDWord(hk,_T("FairlightHack"),0);
+  Params.SoundsysInterception = RegQueryDWord(hk,_T("SoundsysInterception"),1);
   Params.EnableAutoSkip = RegQueryDWord(hk,_T("EnableAutoSkip"),0);
   Params.FirstFrameTimeout = RegQueryDWord(hk,_T("FirstFrameTimeout"),1000);
   Params.FrameTimeout = RegQueryDWord(hk,_T("FrameTimeout"),500);
@@ -135,7 +135,7 @@ static void SaveSettingsToRegistry()
     RegSetDWord(hk,_T("AVIVideoCodec"),Params.VideoCodec);
     RegSetDWord(hk,_T("AVIVideoQuality"),Params.VideoQuality);
     RegSetDWord(hk,_T("NewIntercept"),Params.NewIntercept);
-    RegSetDWord(hk,_T("FairlightHack"),Params.FairlightHack);
+    RegSetDWord(hk,_T("SoundsysInterception"),Params.SoundsysInterception);
     RegSetDWord(hk,_T("EnableAutoSkip"),Params.EnableAutoSkip);
     RegSetDWord(hk,_T("FirstFrameTimeout"),Params.FirstFrameTimeout);
     RegSetDWord(hk,_T("FrameTimeout"),Params.FrameTimeout);
@@ -271,7 +271,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         EnableDlgItem(hWndDlg,IDC_OTHERFRAMETIMEOUT,FALSE);
       }
 
-      CheckDlgButton(hWndDlg,IDC_FAIRLIGHTHACK,Params.FairlightHack ? BST_CHECKED : BST_UNCHECKED);
+      CheckDlgButton(hWndDlg,IDC_SOUNDSYS,Params.SoundsysInterception ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_ENCODERTHREAD,Params.UseEncoderThread ? BST_CHECKED : BST_UNCHECKED);
 
       HIC codec = ICOpen(ICTYPE_VIDEO,Params.VideoCodec,ICMODE_QUERY);
@@ -370,7 +370,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         Params.MakeSleepsLastOneFrame = IsDlgButtonChecked(hWndDlg,IDC_SLEEPLAST) == BST_CHECKED;
         Params.SleepTimeout = 2500; // yeah, this should be configurable
         Params.NewIntercept = IsDlgButtonChecked(hWndDlg,IDC_NEWINTERCEPT) == BST_CHECKED;
-        Params.FairlightHack = IsDlgButtonChecked(hWndDlg,IDC_FAIRLIGHTHACK) == BST_CHECKED;
+        Params.SoundsysInterception = IsDlgButtonChecked(hWndDlg,IDC_SOUNDSYS) == BST_CHECKED;
         Params.EnableAutoSkip = autoSkip;
         Params.PowerDownAfterwards = IsDlgButtonChecked(hWndDlg,IDC_POWERDOWN) == BST_CHECKED;
         Params.UseEncoderThread = IsDlgButtonChecked(hWndDlg,IDC_ENCODERTHREAD) == BST_CHECKED;

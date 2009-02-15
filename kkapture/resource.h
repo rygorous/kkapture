@@ -20,7 +20,7 @@
 #define IDC_AUTOSKIP                    1021
 #define IDC_FIRSTFRAMETIMEOUT           1022
 #define IDC_OTHERFRAMETIMEOUT           1023
-#define IDC_FAIRLIGHTHACK               1024
+#define IDC_SOUNDSYS                    1024
 #define IDC_POWERDOWN                   1025
 #define IDC_ENCODERTHREAD               1026
 

@@ -122,7 +122,7 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,121,126,105,10
     CONTROL         "New startup interception",IDC_NEWINTERCEPT,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,14,138,95,10
-    CONTROL         "BASS latency (aka Fairlight) hack",IDC_FAIRLIGHTHACK,"Button",
+    CONTROL         "BASS/FMOD interception",IDC_SOUNDSYS,"Button",
                     BS_AUTOCHECKBOX | WS_TABSTOP,121,138,120,10
     CONTROL         "Power down on completion",IDC_POWERDOWN,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,14,150,120,10

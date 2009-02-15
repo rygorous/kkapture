@@ -58,7 +58,7 @@ checked with new timing (alphabetical order):
 - sts-03: aeon flux/synesthetics
 - summer encounter/outracks
 - tokyo/xplsv+roterfleck
-- track one/fairlight (turn on "fairlight hack")
+- track one/fairlight (no sound as of v0.08; no clue what went wrong, will look into this sometime)
 - trocken/bauknecht
 - variform/kewlers
 - weird in a strange way/loonies

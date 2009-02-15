@@ -61,11 +61,14 @@ VideoEncoder *createVideoEncoder(const char *filename)
     encoder = new AVIVideoEncoderVFW(filename,frameRateScaled,frameRateDenom,params.VideoCodec,params.VideoQuality);
     break;
 
+#if USE_DSHOW_AVI_WRITER
   case AVIEncoderDShow:
     encoder = new AVIVideoEncoderDShow(filename,frameRateScaled,frameRateDenom,params.VideoCodec,params.VideoQuality);
     break;
+#endif
 
   default:
+    printLog("video: encoder type not supported in this build - not writing anything.\n");
     encoder = new DummyVideoEncoder;
     break;
   }
