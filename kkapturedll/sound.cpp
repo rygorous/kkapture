@@ -1550,6 +1550,8 @@ static void initSoundsysFMOD3()
   }
 }
 
+// ---- FMODEx 4.xx
+
 // ----
 
 void initSound()

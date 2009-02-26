@@ -2,6 +2,7 @@ version 0.08:
 * "frame rate" edit control now supports arbitrary positive decimal ("12.3456") and fractional ("60000/1001") framerates
 * "BASS/FMOD interception" added. BASS interception removes the need for the fairlight hack, FMOD interception fixes FMODs
   broken timing code to make demos run at a higher framerate than 43fps.
+* ddraw capture fix: now also grad frames on primary buffer unlock (fixes voidspace/woorlic, fall equals winter/replay)
 
 version 0.07:
 * "frame timed out" now mentions *which* frame was skipped (if you want to check whether the video is fine or if it causes problems)

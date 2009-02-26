@@ -17,6 +17,7 @@ checked with new timing (alphabetical order):
 - death in vegas/calodox (sound issues on some machines)
 - don't stop/portal process
 - f07/conspiracy
+- fall equals winter/replay
 - fairytale/traction+brainstorm
 - final audition/plastic
 - first offence/parapete
@@ -61,6 +62,7 @@ checked with new timing (alphabetical order):
 - track one/fairlight (no sound as of v0.08; no clue what went wrong, will look into this sometime)
 - trocken/bauknecht
 - variform/kewlers
+- voidspace/woorlic
 - weird in a strange way/loonies
 - wonder/sunflower
 - xmix 2004/mfx+kewlers
@@ -87,8 +89,6 @@ checked and working with problems:
 
 checked and not working:
 - the nonstop ibiza experience/orange (crashes after fractals part for no discernible reason)
-- voidspace/woorlic (uses GDI BitBlt for rendering, not currently supported)
 - abcdemo/the project (uses GDI for rendering)
-- fall equals winter/replay (uses GDI for rendering)
 - sprite-o-mat/alcatraz (hangs on first frame, presumably due to problems with kkapture sound code)
 - leitmotiv/lunix (extremely weird ddraw code that doesn't work with kkapture active and shouldn't work without kkapture active, either)
