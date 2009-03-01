@@ -321,6 +321,24 @@ void blitAndFlipBGRAToCaptureData(unsigned char *source,unsigned pitch)
   }
 }
 
+void blitAndFlipRGBAToCaptureData(unsigned char *source,unsigned pitch)
+{
+  for(int y=0;y<captureHeight;y++)
+  {
+    unsigned char *src = source + (captureHeight - 1 - y) * pitch;
+    unsigned char *dst = captureData + y * captureWidth * 3;
+
+    for(int x=0;x<captureWidth;x++)
+    {
+      dst[0] = src[2];
+      dst[1] = src[1];
+      dst[2] = src[0];
+      dst += 3;
+      src += 4;
+    }
+  }
+}
+
 // public interface
 void initVideo()
 {
@@ -331,8 +349,9 @@ void initVideo()
   seenFrames = false;
 
 	initVideo_OpenGL();
-	initVideo_Direct3D9();
 	initVideo_Direct3D8();
+	initVideo_Direct3D9();
+  initVideo_Direct3D10();
 	initVideo_DirectDraw();
 }
 

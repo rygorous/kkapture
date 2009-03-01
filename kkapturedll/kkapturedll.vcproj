@@ -296,6 +296,10 @@
 				>
 			</File>
 			<File
+				RelativePath=".\video_direct3d10.cpp"
+				>
+			</File>
+			<File
 				RelativePath="video_direct3d8.cpp"
 				>
 			</File>

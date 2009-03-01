@@ -44,8 +44,9 @@ void doneVideo();
 
 // init functions
 void initVideo_OpenGL();
-void initVideo_Direct3D9();
 void initVideo_Direct3D8();
+void initVideo_Direct3D9();
+void initVideo_Direct3D10();
 void initVideo_DirectDraw();
 
 // helpers
@@ -57,6 +58,7 @@ void skipFrame();
 
 // capture helpers
 void blitAndFlipBGRAToCaptureData(unsigned char *source,unsigned pitch);
+void blitAndFlipRGBAToCaptureData(unsigned char *source,unsigned pitch);
 
 extern int captureWidth, captureHeight;
 extern unsigned char *captureData;
