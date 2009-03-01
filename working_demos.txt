@@ -1,6 +1,7 @@
 checked with new timing (alphabetical order):
 - 00101010/FAN
 - 195/95/plastic
+- 47'111.0/factory
 - a deepness in the sky/mfx (synchronization slightly off)
 - above/lkcc
 - abstinens/keyboarders (use auto skip)
@@ -13,30 +14,40 @@ checked with new timing (alphabetical order):
 - che guevara/fairlight
 - coma (on the dancefloor)/cocoon
 - contour/tbl (sounds sucks)
+- dead cells/haujobb
+- dead flowers/haujobb
 - dead ringer/fairlight
 - death in vegas/calodox (sound issues on some machines)
 - don't stop/portal process
+- elektronics (win32)/doomsday
 - f07/conspiracy
 - fall equals winter/replay
 - fairytale/traction+brainstorm
 - final audition/plastic
 - first offence/parapete
+- forms/replay
 - fr-08: the product/farbrausch (use "skip silence at start")
 - fr-025: the popular demo/farbrausch
 - fr-038: theta/farbrausch
 - fr-041: debris/farbrausch
 - frameskool/equinox (use auto skip)
 - fresnel 2/kolor
+- funkkin/haujobb
 - galiwm/ümlaüt design
+- goatard/noice
 - heaven 7/exceed
+- incyber/satori
 - insert coins/traction
 - libgov/kolor
 - liquid lust/fairlight
+- liquid wen/haujobb
+- lost vegas/3state
 - mega hitler expansion pack/boozoholics
 - melrose space/threestate
 - metamorf/satori
 - monorail/bypass+black maiden
 - moral hard candy/blasphemy (use auto skip)
+- mother mother, fukwit dadday/haujobb
 - mupe/playpsyco (use auto skip)
 - nature v2.0/threepixels
 - ninja in a box/tpolm
@@ -70,9 +81,6 @@ checked with new timing (alphabetical order):
 - zyprexa/bauknecht
 
 not working with new timing (alphabetical order):
-- dead cells/haujobb (disable "force sleeps to take one frame", use "skip silence at start")
-- dead flowers/haujobb (disable "force sleeps to take one frame", use "skip silence at start")
-- funkkin/haujobb (disable "force sleeps to take one frame", use "skip silence at start")
 - the nonstop schlachthaus experience/speckdrumm (sound fucked up)
 
 not yet checked with new timing code, working with older timing (alphabetical order):

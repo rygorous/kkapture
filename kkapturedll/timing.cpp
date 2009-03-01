@@ -89,8 +89,10 @@ static void seedAllTimers()
 
 BOOL __stdcall Mine_QueryPerformanceFrequency(LARGE_INTEGER *lpFrequency)
 {
-  if(!IsBadWritePtr(lpFrequency,sizeof(LARGE_INTEGER)))
+  if(lpFrequency)
     lpFrequency->QuadPart = perfFrequency;
+  //if(!IsBadWritePtr(lpFrequency,sizeof(LARGE_INTEGER)))
+  //  lpFrequency->QuadPart = perfFrequency;
 
   return TRUE;
 }
@@ -100,7 +102,7 @@ BOOL __stdcall Mine_QueryPerformanceCounter(LARGE_INTEGER *lpCounter)
   int frame = getFrameTiming();
   seedAllTimers();
 
-  if(!IsBadWritePtr(lpCounter,sizeof(LARGE_INTEGER)))
+  if(lpCounter)
     lpCounter->QuadPart = firstTimeQPC.QuadPart + ULongMulDiv(perfFrequency,frame*frameRateDenom,frameRateScaled);
 
   return TRUE;
@@ -537,6 +539,9 @@ void nextFrameTiming()
     SetWaitableTimer(stuckTimer,&due,0,0,0,FALSE);
   }
 
+  // make sure there's always a message in the queue for next frame
+  // (some old hjb intros stop when there's no new messages)
+  PostMessage(GetForegroundWindow(),WM_NULL,0,0);
   currentFrame++;
 }
 

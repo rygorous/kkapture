@@ -565,29 +565,38 @@ static bool PrepareInstrumentation(HANDLE hProcess,BYTE *workArea,TCHAR *dllName
   code = DetourGenCall(code,loadLibrary,workArea + (code - buffer.code));
   code = DetourGenPopad(code);
 
-  // Check whether startup code begins with a call or jump
+  // Copy startup code
   BYTE *sourcePtr = origCode;
-
-  if(sourcePtr[0] == 0xe8 || sourcePtr[0] == 0xe9) // Yes, we can jump/call there too
+  DWORD relPos;
+  while((relPos = sourcePtr - origCode) < sizeof(jumpCode))
   {
-    // Copy the opcode
-    *code++ = *sourcePtr++;
+    if(sourcePtr[0] == 0xe8 || sourcePtr[0] == 0xe9) // Yes, we can jump/call there too
+    {
+      if(sourcePtr[0] == 0xe8)
+      {
+        // turn a call into a push/jump sequence; this is necessary in case someone
+        // decides to do computations based on the return address in the stack frame
+        code = DetourGenPush(code,(UINT32) (entryPoint + relPos + 5));
+        *code++ = 0xe9; // rest of flow continues with a jmp near
+        sourcePtr++;
+      }
+      else // just copy the opcode
+        *code++ = *sourcePtr++;
 
-    // Copy target address, compensating for offset
-    *((DWORD *) code) = *((DWORD *) sourcePtr)
-      + entryPoint + (sourcePtr - origCode) + 4 // add back original position
-      - (workArea + (code - buffer.code) + 4);  // subtract new position
+      // Copy target address, compensating for offset
+      *((DWORD *) code) = *((DWORD *) sourcePtr)
+        + entryPoint + relPos + 1             // add back original position
+        - (workArea + (code - buffer.code));  // subtract new position
 
-    code += 4;
-    sourcePtr += 4;
-  }
-  else // No, we have to copy instructions
-  {
-    // Copy over first few bytes from startup code
-    while((sourcePtr - origCode) < sizeof(jumpCode))
-      sourcePtr = DetourCopyInstruction(code + (sourcePtr - origCode),sourcePtr,0);
-
-    code += sourcePtr - origCode;
+      code += 4;
+      sourcePtr += 4;
+    }
+    else // not a jump/call, copy instruction
+    {
+      BYTE *oldPtr = sourcePtr;
+      sourcePtr = DetourCopyInstruction(code,sourcePtr,0);
+      code += sourcePtr - oldPtr;
+    }
   }
 
   // Jump to rest

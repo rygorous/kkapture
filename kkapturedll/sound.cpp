@@ -1501,7 +1501,7 @@ static int __stdcall Mine_FSOUND_Stream_GetTime(void *stream)
   FMODStreamDesc *desc = FMODStreamFromPtr(stream);
   if(desc)
   {
-    unsigned int time = UMulDiv(getFrameTiming() - desc->firstFrame,1000*100,frameRateScaled);
+    unsigned int time = UMulDiv(getFrameTiming() - desc->firstFrame,1000*frameRateDenom,frameRateScaled);
     return time;
   }
 
@@ -1513,12 +1513,9 @@ static unsigned int __stdcall Mine_FSOUND_GetCurrentPosition(int channel)
   FMODStreamDesc *desc = FMODStreamFromChannel(channel);
   if(!CalledFromFMOD() && desc)
   {
-    printLog("sound/fmod: GetCurrentPosition(%08x)\n",channel);
-
     // this is a known stream playing; return time based on frame timing.
     // (to work around FMODs stupidly coarse timer resolution)
-    unsigned int time = UMulDiv(getFrameTiming() - desc->firstFrame,desc->frequency*100,frameRateScaled);
-    printLog("sound/fmod: value is %d\n",time);
+    unsigned int time = UMulDiv(getFrameTiming() - desc->firstFrame,desc->frequency*frameRateDenom,frameRateScaled);
     return time;
   }
 
