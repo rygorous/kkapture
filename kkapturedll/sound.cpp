@@ -1549,6 +1549,115 @@ static void initSoundsysFMOD3()
 
 // ---- FMODEx 4.xx
 
+typedef int (__stdcall *PSYSTEM_PLAYSOUND)(void *sys,int index,void *sound,bool paused,void **channel);
+typedef int (__stdcall *PCHANNEL_GETFREQUENCY)(void *chan,float *freq);
+typedef int (__stdcall *PCHANNEL_GETPOSITION)(void *chan,unsigned *position,int posType);
+
+static PSYSTEM_PLAYSOUND Real_System_playSound;
+static PCHANNEL_GETFREQUENCY Real_Channel_getFrequency;
+static PCHANNEL_GETPOSITION Real_Channel_getPosition;
+
+static void *FMODExStart = 0, *FMODExEnd = 0;
+
+#define CalledFromFMODEx() (_ReturnAddress() >= FMODExStart && _ReturnAddress() < FMODExEnd) // needs to be a macro
+
+struct FMODExSoundDesc
+{
+  void *sound;
+  void *channel;
+  int firstFrame;
+  float frequency;
+};
+
+static const int FMODExNumSounds = 16; // max # of active (playing) sounds supported
+static FMODExSoundDesc FMODExSounds[FMODExNumSounds];
+
+static int __stdcall Mine_System_playSound(void *sys,int index,void *sound,bool paused,void **channel)
+{
+  void *chan;
+  printLog("sound/fmodex: playSound\n");
+  int result = Real_System_playSound(sys,index,sound,paused,&chan);
+  if(result == 0) // FMOD_OK
+  {
+    // find a free sound desc
+    int index = 0;
+    while(index<FMODExNumSounds && FMODExSounds[index].sound)
+      index++;
+
+    if(index==FMODExNumSounds)
+      printLog("sound/fmodex: more than %d sounds playing, ran out of handles.\n",FMODExNumSounds);
+    else
+    {
+      FMODExSounds[index].sound = sound;
+      FMODExSounds[index].channel = chan;
+      FMODExSounds[index].firstFrame = getFrameTiming();
+      Real_Channel_getFrequency(chan,&FMODExSounds[index].frequency);
+    }
+  }
+
+  if(channel)
+    *channel = chan;
+
+  return result;
+}
+
+static FMODExSoundDesc *FMODExSoundFromChannel(void *chan)
+{
+  for(int i=0;i<FMODExNumSounds;i++)
+    if(FMODExSounds[i].sound && FMODExSounds[i].channel == chan)
+      return &FMODExSounds[i];
+
+  return 0;
+}
+
+static int __stdcall Mine_Channel_getPosition(void *channel,unsigned *position,int posType)
+{
+  FMODExSoundDesc *desc = FMODExSoundFromChannel(channel);
+  if(desc && !CalledFromFMODEx())
+  {
+    int timeBase;
+
+    switch(posType)
+    {
+    case 1:   timeBase = 1000; break;                   // FMOD_TIMEUNIT_MS
+    case 2:   timeBase = (int) desc->frequency; break;  // FMOD_TIMEUNIT_PCM
+    default:  timeBase = -1; break;
+    }
+
+    if(timeBase != -1)
+    {
+      *position = UMulDiv(getFrameTiming() - desc->firstFrame,timeBase*frameRateDenom,frameRateScaled);
+      return 0; // FMOD_OK
+    }
+    else
+      printLog("sound/fmodex: unsupported timebase used in Channel::getPosition, forwarding to fmod timer.\n");
+  }
+
+  return Real_Channel_getPosition(channel,position,posType);
+}
+
+static void initSoundsysFMODEx()
+{
+  HMODULE fmodDll = LoadLibraryA("fmodex.dll");
+  if(fmodDll)
+  {
+    if(GetProcAddress(fmodDll,"FMOD_System_Init"))
+    {
+      MODULEINFO moduleInfo;
+      GetModuleInformation(GetCurrentProcess(),fmodDll,&moduleInfo,sizeof(moduleInfo));
+
+      FMODExStart = moduleInfo.lpBaseOfDll;
+      FMODExEnd = (void*) ((BYTE*) moduleInfo.lpBaseOfDll + moduleInfo.SizeOfImage);
+
+      printLog("sound/fmodex: fmodex.dll found, FMODEx support enabled.\n");
+
+      Real_System_playSound = (PSYSTEM_PLAYSOUND) DetourFunction((PBYTE) GetProcAddress(fmodDll,"?playSound@System@FMOD@@QAG?AW4FMOD_RESULT@@W4FMOD_CHANNELINDEX@@PAVSound@2@_NPAPAVChannel@2@@Z"),(PBYTE) Mine_System_playSound);
+      Real_Channel_getFrequency = (PCHANNEL_GETFREQUENCY) GetProcAddress(fmodDll,"?getFrequency@Channel@FMOD@@QAG?AW4FMOD_RESULT@@PAM@Z");
+      Real_Channel_getPosition = (PCHANNEL_GETPOSITION) DetourFunction((PBYTE) GetProcAddress(fmodDll,"?getPosition@Channel@FMOD@@QAG?AW4FMOD_RESULT@@PAII@Z"),(PBYTE) Mine_Channel_getPosition);
+    }
+  }
+}
+
 // ----
 
 void initSound()
@@ -1575,6 +1684,7 @@ void initSound()
   {
     initSoundsysBASS();
     initSoundsysFMOD3();
+    initSoundsysFMODEx();
   }
 }
 
