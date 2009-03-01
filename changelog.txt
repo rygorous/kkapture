@@ -5,7 +5,8 @@ version 0.08:
 * separate encoder thread option (makes everything much faster on multicore systems, but the code isn't very well tested)
 * ddraw capture fix: now also grad frames on primary buffer unlock (fixes voidspace/woorlic, fall equals winter/replay)
 * post a dummy WM_NULL message to foreground window every frame (fix for some old hjb intros)
-* new startup interception fix: treat calls in startup code differently ("dead cells" now works) 
+* new startup interception fix: treat calls in startup code differently ("dead cells" now works)
+* d3d10 support (only tried it on texas though, so it's not particularly well-tested).
 
 version 0.07:
 * "frame timed out" now mentions *which* frame was skipped (if you want to check whether the video is fine or if it causes problems)

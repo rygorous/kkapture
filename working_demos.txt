@@ -69,6 +69,7 @@ checked with new timing (alphabetical order):
 - structure 2: sequence/ümlaüt design
 - sts-03: aeon flux/synesthetics
 - summer encounter/outracks
+- texas/keyboarders
 - tokyo/xplsv+roterfleck
 - track one/fairlight (no sound as of v0.08; no clue what went wrong, will look into this sometime)
 - trocken/bauknecht
