@@ -4,6 +4,7 @@ version 0.09:
 * audio: automatically reduce WAVEFORMATEXTENSIBLE to WAVEFORMATEX if possible (for compatibility)
 * audio: can now mix both stereo->mono and mono->stereo if required
 * audio: WAVE_FORMAT_IEEE_FLOAT support (should help a lot with 4k intros using 4klang)
+* waveOutGetTimeFix (apparently, TIME_MS is *broken* and returns offsets in bytes too. ah well. fixes kindercrasher/rgba and probably some others too)
 
 version 0.08:
 * "frame rate" edit control now supports arbitrary positive decimal ("12.3456") and fractional ("60000/1001") framerates

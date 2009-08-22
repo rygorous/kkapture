@@ -19,6 +19,7 @@ checked with new timing (alphabetical order):
 - dead ringer/fairlight
 - death in vegas/calodox (sound issues on some machines)
 - don't stop/portal process
+- dreamcreditor/xzm
 - elektronics (win32)/doomsday
 - f07/conspiracy
 - fall equals winter/replay
@@ -42,6 +43,7 @@ checked with new timing (alphabetical order):
 - liquid lust/fairlight
 - liquid wen/haujobb
 - lost vegas/3state
+- masagin/farbrausch
 - mega hitler expansion pack/boozoholics
 - melrose space/threestate
 - metamorf/satori
