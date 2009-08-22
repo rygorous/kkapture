@@ -103,3 +103,64 @@ ULONGLONG ULongMulDiv(ULONGLONG a,DWORD b,DWORD c)
 
   return a;
 }
+
+// ---- really misc stuff
+
+void *MakeCopy(const void *src,int size)
+{
+  unsigned char *buffer = new unsigned char[size];
+  memcpy(buffer,src,size);
+  return buffer;
+}
+
+WAVEFORMATEX *CopyFormat(const WAVEFORMATEX *src)
+{
+  if(!src)
+    return 0;
+
+  // try to simplify audio format if possible
+  if(src->wFormatTag==WAVE_FORMAT_EXTENSIBLE)
+  {
+    static unsigned char WaveFormatTag[8] = { 0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71 };
+
+    WAVEFORMATEXTENSIBLE *wfe = (WAVEFORMATEXTENSIBLE *) src;
+    if(wfe->Samples.wValidBitsPerSample == wfe->Format.wBitsPerSample
+      && wfe->dwChannelMask == (1 << wfe->Format.nChannels)-1
+      && wfe->SubFormat.Data1 < 0x10000
+      && wfe->SubFormat.Data2 == 0x0000 && wfe->SubFormat.Data3 == 0x0010
+      && memcmp(wfe->SubFormat.Data4,WaveFormatTag,8)==0)
+    {
+      // just drop the WAVEFORMATEXTENSIBLE part entirely
+      WAVEFORMATEX *out = new WAVEFORMATEX;
+      memcpy(out,src,sizeof(WAVEFORMATEX));
+      out->wFormatTag = (WORD) wfe->SubFormat.Data1;
+      out->cbSize = 0;
+      return out;
+    }
+  }
+
+  // general case
+  int size = sizeof(WAVEFORMATEX)+src->cbSize;
+  unsigned char *buffer = new unsigned char[size];
+  memcpy(buffer,src,size);
+
+  return (WAVEFORMATEX*) buffer;
+}
+
+WAVEFORMATEX *BounceFormat(const WAVEFORMATEX *src)
+{
+  WAVEFORMATEX *out = CopyFormat(src);
+
+  // downmix 32bit float data to 16bit pcm since the former is mostly unsupported
+  if(out && out->wFormatTag == WAVE_FORMAT_IEEE_FLOAT && out->wBitsPerSample == 32)
+  {
+    printLog("audio: downmixing 32bit float audio to 16bit pcm\n");
+
+    out->wFormatTag = WAVE_FORMAT_PCM;
+    out->wBitsPerSample = 16;
+    out->nBlockAlign = out->nChannels * 2;
+    out->nAvgBytesPerSec = out->nSamplesPerSec * out->nBlockAlign;
+  }
+
+  return out;
+}

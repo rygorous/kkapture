@@ -28,7 +28,7 @@ struct BMPVideoEncoder::Internal
 {
   BITMAPFILEHEADER bmfh;
   BITMAPINFOHEADER bmih;
-  WAVEFORMATEX wfx;
+  WAVEFORMATEX *wfx;
   FILE *wave;
 };
 
@@ -42,6 +42,7 @@ BMPVideoEncoder::BMPVideoEncoder(const char *fileName)
   
   intn = new Internal;
   intn->wave = 0;
+  intn->wfx = 0;
 
   ZeroMemory(&intn->bmfh,sizeof(BITMAPFILEHEADER));
   ZeroMemory(&intn->bmih,sizeof(BITMAPINFOHEADER));
@@ -74,6 +75,7 @@ BMPVideoEncoder::~BMPVideoEncoder()
     fclose(intn->wave);
   }
 
+  delete[] (unsigned char *) intn->wfx;
   delete intn;
 }
 
@@ -117,7 +119,8 @@ void BMPVideoEncoder::SetAudioFormat(const tWAVEFORMATEX *fmt)
     strcpy_s(filename,prefix);
     strcat_s(filename,".wav");
 
-    intn->wfx = *fmt;
+    delete intn->wfx;
+    intn->wfx = CopyFormat(fmt);
     intn->wave = fopen(filename,"wb");
     
     if(intn->wave)
@@ -126,7 +129,7 @@ void BMPVideoEncoder::SetAudioFormat(const tWAVEFORMATEX *fmt)
       static unsigned char data[] = "data\0\0\0\0";
 
       fwrite(header,1,sizeof(header)-1,intn->wave);
-      DWORD len = sizeof(WAVEFORMATEX)-2;
+      DWORD len = fmt->cbSize ? sizeof(WAVEFORMATEX)+fmt->cbSize : sizeof(WAVEFORMATEX)-2;
       fwrite(&len,1,sizeof(DWORD),intn->wave);
       fwrite(fmt,1,len,intn->wave);
       fwrite(data,1,sizeof(data)-1,intn->wave);
@@ -142,16 +145,14 @@ void BMPVideoEncoder::SetAudioFormat(const tWAVEFORMATEX *fmt)
   }
 }
 
-void BMPVideoEncoder::GetAudioFormat(tWAVEFORMATEX *fmt)
+WAVEFORMATEX *BMPVideoEncoder::GetAudioFormat()
 {
-  if(intn->wave)
-    *fmt = intn->wfx;
-  else
-    ZeroMemory(fmt,sizeof(tWAVEFORMATEX));
+  if(!intn->wave || !intn->wfx) return 0;
+  return CopyFormat(intn->wfx);
 }
 
 void BMPVideoEncoder::WriteAudioFrame(const void *buffer,int samples)
 {
   if(intn->wave)
-    fwrite(buffer,intn->wfx.nBlockAlign,samples,intn->wave);
+    fwrite(buffer,intn->wfx->nBlockAlign,samples,intn->wave);
 }

@@ -608,7 +608,7 @@ struct AVIVideoEncoderDShow::Internal
   AudioSourceFilter *audio;
   IMediaControl *control;
   
-  WAVEFORMATEX wfx;
+  WAVEFORMATEX *wfx;
 
   bool audioOk;
   AudioResampler resampler;
@@ -689,6 +689,7 @@ void AVIVideoEncoderDShow::Cleanup()
   safeRelease(d->audio);
 
   delete[] d->resampleBuf;
+  delete[] (unsigned char*) d->wfx;
 }
 
 void AVIVideoEncoderDShow::StartEncode()
@@ -802,7 +803,7 @@ AVIVideoEncoderDShow::AVIVideoEncoderDShow(const char *name,int _fpsNum,int _fps
   d->audio = 0;
   d->vid_compress = 0;
   d->control = 0;
-  ZeroMemory(&d->wfx,sizeof(d->wfx));
+  d->wfx = 0;
 
   d->audioOk = false;
   d->resampleBuf = 0;
@@ -843,14 +844,15 @@ void AVIVideoEncoderDShow::SetAudioFormat(const tWAVEFORMATEX *fmt)
     printLog("avi_dshow: audio format %d Hz, %d bits/sample, %d channels\n",
       fmt->nSamplesPerSec,fmt->wBitsPerSample,fmt->nChannels);
 
-    d->wfx = *fmt;
-    StartAudioEncode(&d->wfx);
+    delete d->wfx;
+    d->wfx = CopyFormat(fmt);
+    StartAudioEncode(d->wfx);
   }
 }
 
-void AVIVideoEncoderDShow::GetAudioFormat(tWAVEFORMATEX *fmt)
+tWAVEFORMATEX *AVIVideoEncoderDShow::GetAudioFormat()
 {
-  *fmt = d->wfx;
+  return CopyFormat(d->wfx);
 }
 
 void AVIVideoEncoderDShow::WriteAudioFrame(const void *buffer,int samples)
@@ -861,7 +863,7 @@ void AVIVideoEncoderDShow::WriteAudioFrame(const void *buffer,int samples)
     if(needSize > d->resampleSize)
     {
       delete[] d->resampleBuf;
-      d->resampleBuf = new short[needSize * 4];
+      d->resampleBuf = new short[needSize * 2]; // 2 samples (stereo)
       d->resampleSize = needSize;
     }
 

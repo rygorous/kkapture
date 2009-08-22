@@ -49,9 +49,9 @@ void DummyVideoEncoder::SetAudioFormat(const tWAVEFORMATEX *fmt)
 {
 }
 
-void DummyVideoEncoder::GetAudioFormat(tWAVEFORMATEX *fmt)
+tWAVEFORMATEX *DummyVideoEncoder::GetAudioFormat()
 {
-  ZeroMemory(&fmt,sizeof(tWAVEFORMATEX));
+  return 0;
 }
 
 void DummyVideoEncoder::WriteAudioFrame(const void *buffer,int samples)

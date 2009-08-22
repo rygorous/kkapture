@@ -85,8 +85,7 @@ void videoStartNextPart(bool autoSize)
   videoNeedEncoder();
 
   // get the current audio format (so we can resume audio seamlessly)
-  WAVEFORMATEX wfx;
-  encoder->GetAudioFormat(&wfx);
+  WAVEFORMATEX *wfx = encoder->GetAudioFormat();
 
   // delete the encoder
   delete encoder;
@@ -120,8 +119,10 @@ void videoStartNextPart(bool autoSize)
     encoder->SetSize(captureWidth,captureHeight);
 
   // set audio format if we had one
-  if(wfx.wFormatTag)
-    encoder->SetAudioFormat(&wfx);
+  if(wfx)
+    encoder->SetAudioFormat(wfx);
+
+  delete[] (unsigned char*) wfx;
 }
 
 void videoNeedEncoder()
@@ -311,6 +312,7 @@ void blitAndFlipBGRAToCaptureData(unsigned char *source,unsigned pitch)
     blit32to24loop(dst,src,captureWidth);
     /*// a better copy loop maybe would improve performance (then again, maybe
     // it wouldn't)
+    // update: it does. slightly.
     for(int x=0;x<captureWidth;x++)
     {
       *dst++ = *src++;

@@ -40,7 +40,7 @@ class AVIVideoEncoderVFW : public VideoEncoder
   void Init();
   void Cleanup();
   void StartEncode();
-  void StartAudioEncode(const tWAVEFORMATEX *fmt);
+  void StartAudioEncode();
 
 public:
   AVIVideoEncoderVFW(const char *name,int fpsNum,int fpsDenom,unsigned long codec,unsigned int quality);
@@ -50,7 +50,7 @@ public:
   virtual void WriteFrame(const unsigned char *buffer);
 
   virtual void SetAudioFormat(const tWAVEFORMATEX *fmt);
-  virtual void GetAudioFormat(tWAVEFORMATEX *fmt);
+  virtual tWAVEFORMATEX *GetAudioFormat();
   virtual void WriteAudioFrame(const void *buffer,int samples);
 };
 

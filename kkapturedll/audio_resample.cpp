@@ -50,22 +50,14 @@ static int clamp(int x)
   return (x < -32768) ? -32768 : (x > 32767) ? 32767 : x;
 }
 
-// read 8-bit unsigned samples
-float getSample(unsigned char *in)
-{
-  return (*in - 128.0f) * 256.0f;
-}
-
-// read 16-bit signed samples
-float getSample(short *in)
-{
-  return *in;
-}
+static inline float getSample(const unsigned char *in)    { return (*in - 128.0f) * 256.0f; }
+static inline float getSample(const short *in)            { return *in; }
+static inline float getSample(const float *in)            { return *in * 32767.0f; }
 
 // ----
 
-// resampling main function for 16bit input data
-template<class T> int AudioResampler::ResampleChan(T *in,short *out,int nInSamples,float *chanBuf)
+// resampling inner loop, templated on the data type
+template<class T> int AudioResampler::ResampleChan(T *in,short *out,int nInSamples,float *chanBuf,int stride,bool add,float amp)
 {
   int outSamples = 0;
   float x0,x1,x2,x3;
@@ -92,8 +84,8 @@ template<class T> int AudioResampler::ResampleChan(T *in,short *out,int nInSampl
     else // generate output samples
     {
       // evaluate
-      *out = clamp((int) catmullRom(x0,x1,x2,x3,tFrac * invScale));
-      out += 2;
+      *out = (add ? *out : 0) + clamp((int) (amp * catmullRom(x0,x1,x2,x3,tFrac * invScale)));
+      out += stride;
       outSamples++;
 
       // advance input time
@@ -162,17 +154,26 @@ template<class T> int AudioResampler::ResampleBlock(T *in,short *out,int nInSamp
   // process the sample block
   count = 0;
 
+  // set amplitude for stereo->mono downmix if necessary
+  // should be sqrt(0.5) (equal power panning), but then i risk mixing two clamped
+  // signals for extra distortion. the proper way to do this is use a higher dynamic
+  // range mixing buffer (e.g. 32bit ints); maybe for the next iteration.
+  float amp = (InChans == 2 && OutChans == 1) ? 0.5f : 1.0f;
+
   if(nInSamples)
   {
     int tOrig = tFrac;
 
-    count = ResampleChan(in,out,nInSamples,ChannelBuf[0]);
+    count = ResampleChan(in,out,nInSamples,ChannelBuf[0],OutChans,false,amp);
     if(InChans == 2) // stereo input
     {
       tFrac = tOrig;
-      ResampleChan(in+1,out+1,nInSamples,ChannelBuf[1]);
+      if(OutChans == 2) // also stereo output, can do this directly
+        ResampleChan(in+1,out+1,nInSamples,ChannelBuf[1],OutChans,false,amp);
+      else
+        ResampleChan(in+1,out,nInSamples,ChannelBuf[1],OutChans,true,amp);
     }
-    else // plain channel doubling
+    else if(InChans == 1 && OutChans == 2) // mono->stereo is easy
     {
       for(int i=0;i<count*2;i+=2)
         out[i+1] = out[i];
@@ -193,49 +194,95 @@ AudioResampler::~AudioResampler()
 {
 }
 
+static bool supportedSourceFormat(const tWAVEFORMATEX *f)
+{
+  bool ok = false;
+
+  switch(f->wFormatTag)
+  {
+  case WAVE_FORMAT_PCM:
+    ok = (f->wBitsPerSample == 8 || f->wBitsPerSample == 16);
+    break;
+
+  case WAVE_FORMAT_IEEE_FLOAT:
+    ok = (f->wBitsPerSample == 32);
+    break;
+  }
+
+  if(!ok)
+    printLog("audio_resample: only 8/16 bit PCM or 32bit float wave data supported as source format.\n");
+  else if(f->nChannels < 1 || f->nChannels > 2)
+  {
+    ok = false;
+    printLog("audio_resample: only mono or stereo data, please.\n");
+  }
+  else if(f->nSamplesPerSec < 4000 || f->nSamplesPerSec > 256000)
+  {
+    printLog("audio_resample: unsupported source sample rate (must be between 4kHz and 256kHz)\n");
+    ok = false;
+  }
+
+  return ok;
+}
+
+static bool supportedDestinationFormat(const tWAVEFORMATEX *f)
+{
+  bool ok = (f->wFormatTag == WAVE_FORMAT_PCM && f->wBitsPerSample == 16);
+  if(!ok)
+    printLog("audio_resample: only 16bit PCM wave data supported as destination format.\n");
+  else if(f->nChannels < 1 || f->nChannels > 2)
+  {
+    ok = false;
+    printLog("audio_resample: only mono or stereo data, please.\n");
+  }
+  else if(f->nSamplesPerSec < 4000 || f->nSamplesPerSec > 256000)
+  {
+    printLog("audio_resample: unsupported destination sample rate (must be between 4kHz and 256kHz)\n");
+    ok = false;
+  }
+
+  return ok;
+}
+
 bool AudioResampler::Init(const tWAVEFORMATEX *srcFormat,const tWAVEFORMATEX *dstFormat)
 {
-  // some sanity checks: first of all, we only support PCM formats
-  if(srcFormat->wFormatTag != WAVE_FORMAT_PCM || dstFormat->wFormatTag != WAVE_FORMAT_PCM)
-    return false;
-
-  // only 8 or 16 bit input and only 16 bit output
-  if((srcFormat->wBitsPerSample != 8 && srcFormat->wBitsPerSample != 16)
-    || dstFormat->wBitsPerSample != 16)
-    return false;
-
-  // only mono or stereo input and stereo output
-  if((srcFormat->nChannels != 1 && srcFormat->nChannels != 2)
-    || dstFormat->nChannels != 2)
-    return false;
-
-  // reasonable sample rate bounds
-  if(srcFormat->nSamplesPerSec < 4000 || srcFormat->nSamplesPerSec > 48000
-    || dstFormat->nSamplesPerSec < 4000 || dstFormat->nSamplesPerSec > 48000)
+  // some sanity checks for the supported format types
+  if(!supportedSourceFormat(srcFormat)
+    || !supportedDestinationFormat(dstFormat))
     return false;
 
   // plus some consistency checks
   if(srcFormat->nBlockAlign != srcFormat->nChannels * srcFormat->wBitsPerSample / 8)
+  {
+    printLog("audio_resample: source block align looks wrong\n");
     return false;
+  }
 
   if(dstFormat->nBlockAlign != dstFormat->nChannels * dstFormat->wBitsPerSample / 8)
+  {
+    printLog("audio_resample: destination block align looks wrong\n");
     return false;
+  }
 
   if(srcFormat->cbSize != 0 || dstFormat->cbSize != 0)
+  {
+    printLog("audio_resample: junk in format descriptor.\n");
     return false;
+  }
 
   // everything seems to be ok, set up conversion...
   Initialized = true;
-  In8Bit = srcFormat->wBitsPerSample == 8;
+  InBits = srcFormat->wBitsPerSample;
   InChans = srcFormat->nChannels;
   InRate = srcFormat->nSamplesPerSec;
   OutRate = dstFormat->nSamplesPerSec;
+  OutChans = dstFormat->nChannels;
 
-  Identical = !In8Bit && InChans == 2 && InRate == OutRate;
+  Identical = InBits == 16 && InChans == OutChans && InRate == OutRate;
   if(!Identical)
     printLog("audio_resample: converting from %d Hz %d bits %s to %d Hz %d bits %s\n",
-    InRate,In8Bit ? 8 : 16,InChans == 1 ? "mono" : "stereo",
-    OutRate,16,"stereo");
+    InRate,InBits,InChans == 1 ? "mono" : "stereo",
+    OutRate,16,OutChans == 1 ? "mono" : "stereo");
 
   // setup resampling state
   tFrac = 0;
@@ -259,29 +306,37 @@ int AudioResampler::MaxOutputSamples(int nInSamples) const
 int AudioResampler::Resample(const void *src,short *out,int nInSamples,bool last)
 {
   int count;
-  unsigned char zero[3*2*2]; // enough space for 3 16bit stereo samples
+  unsigned char zero[3*2*4]; // enough space for 3 32bit stereo samples
 
   memset(zero,0,sizeof(zero));
 
   // in identical resampling mode, just copy
   if(Identical)
   {
-    memcpy(out,src,nInSamples * 4);
+    memcpy(out,src,nInSamples * OutChans * 2);
     return nInSamples;
   }
 
   // else we have some more work to do
-  if(In8Bit)
+  switch(InBits)
   {
+  case 8:
     count = ResampleBlock((unsigned char *) src,out,nInSamples);
     if(last)
       count += ResampleBlock((unsigned char *) zero,out + count*2,3);
-  }
-  else
-  {
+    break;
+
+  case 16:
     count = ResampleBlock((short *) src,out,nInSamples);
     if(last)
       count += ResampleBlock((short *) zero,out + count*2,3);
+    break;
+
+  case 32:
+    count = ResampleBlock((float *) src,out,nInSamples);
+    if(last)
+      count += ResampleBlock((float *) zero,out + count*2,3);
+    break;
   }
 
   return count;

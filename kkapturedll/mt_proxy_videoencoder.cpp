@@ -50,7 +50,7 @@ struct MTProxyVideoEncoder::Internal
   HANDLE queue_semaphore;
   HANDLE queue_exit;
   HANDLE queue_thread;
-  WAVEFORMATEX wfx;
+  WAVEFORMATEX *wfx;
   int xRes, yRes;
   VideoEncoder *actualEncoder;
 
@@ -154,14 +154,6 @@ unsigned MTProxyVideoEncoder::QueueRunner(void *para)
   return 0;
 }
 
-void* MTProxyVideoEncoder::MakeCopy(const void *ptr, int size)
-{
-  unsigned char *copy = new unsigned char[size];
-  memcpy(copy, ptr, size);
-
-  return copy;
-}
-
 MTProxyVideoEncoder::MTProxyVideoEncoder(VideoEncoder *actual)
 {
   d = new Internal;
@@ -172,6 +164,8 @@ MTProxyVideoEncoder::MTProxyVideoEncoder(VideoEncoder *actual)
   d->queue_exit = CreateEvent(0,FALSE,FALSE,0);
   d->actualEncoder = actual;
   d->xRes = d->yRes = 0;
+
+  d->wfx = 0;
 
   // kick off queue runner
   d->queue_thread = (HANDLE) _beginthreadex(0, 0, QueueRunner, d, 0, 0);
@@ -188,6 +182,7 @@ MTProxyVideoEncoder::~MTProxyVideoEncoder()
   CloseHandle(d->queue_exit);
   DeleteCriticalSection(&d->queue_lock);
 
+  delete[] (unsigned char*) d->wfx;
   delete d->actualEncoder;
   delete d;
 }
@@ -207,19 +202,20 @@ void MTProxyVideoEncoder::WriteFrame(const unsigned char *buffer)
 
 void MTProxyVideoEncoder::SetAudioFormat(const tWAVEFORMATEX *fmt)
 {
-  d->QueueAppend(QC_SETAUDIOFORMAT,
-    MakeCopy(fmt,sizeof(WAVEFORMATEX)+fmt->cbSize),0,0);
-  d->wfx = *fmt;
+  d->QueueAppend(QC_SETAUDIOFORMAT,CopyFormat(fmt),0,0);
+  
+  delete d->wfx;
+  d->wfx = CopyFormat(fmt);
 }
 
-void MTProxyVideoEncoder::GetAudioFormat(tWAVEFORMATEX *fmt)
+tWAVEFORMATEX *MTProxyVideoEncoder::GetAudioFormat()
 {
-  if(fmt)
-    *fmt = d->wfx;
+  if(!d->wfx) return 0;
+  return CopyFormat(d->wfx);
 }
 
 void MTProxyVideoEncoder::WriteAudioFrame(const void *buffer, int samples)
 {
   d->QueueAppend(QC_WRITEAUDIOFRAME,
-    MakeCopy(buffer,samples*d->wfx.nBlockAlign),samples,0);
+    MakeCopy(buffer,samples*d->wfx->nBlockAlign),samples,0);
 }

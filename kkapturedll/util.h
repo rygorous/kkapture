@@ -56,4 +56,13 @@ DWORD UMulDiv(DWORD a,DWORD b,DWORD c);
 // temporary result, then divide by a 32-bit number
 ULONGLONG ULongMulDiv(ULONGLONG a,DWORD b,DWORD c);
 
+// ---- really misc stuff
+void *MakeCopy(const void *src,int size); // copy allocated as unsigned char[]
+
+// Copies and simplifies a WAVEFORMATEX
+struct tWAVEFORMATEX *CopyFormat(const tWAVEFORMATEX *src);
+
+// Get downmix (bounce) format for a source WAVEFORMATEX
+struct tWAVEFORMATEX *BounceFormat(const tWAVEFORMATEX *src);
+
 #endif

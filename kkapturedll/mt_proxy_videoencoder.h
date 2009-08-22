@@ -36,7 +36,6 @@ class MTProxyVideoEncoder : public VideoEncoder
   Internal *d;
 
   static unsigned __stdcall QueueRunner(void *para);
-  static void* MakeCopy(const void *ptr, int size);
 
 public:
   // Transfers ownership of the video encoder to this object!
@@ -47,7 +46,7 @@ public:
   virtual void WriteFrame(const unsigned char *buffer);
 
   virtual void SetAudioFormat(const tWAVEFORMATEX *fmt);
-  virtual void GetAudioFormat(tWAVEFORMATEX *fmt);
+  virtual tWAVEFORMATEX *GetAudioFormat();
   virtual void WriteAudioFrame(const void *buffer,int samples);
 };
 

@@ -107,6 +107,7 @@ static void captureGLFrame()
 // newer wingdi.h versions don't declare this anymore
 extern "C" BOOL __stdcall wglSwapBuffers(HDC hdc);
 
+DETOUR_TRAMPOLINE(LONG __stdcall Real_ChangeDisplaySettings(LPDEVMODE lpDevMode,DWORD dwFlags), ChangeDisplaySettings);
 DETOUR_TRAMPOLINE(LONG __stdcall Real_ChangeDisplaySettingsEx(LPCTSTR lpszDeviceName,LPDEVMODE lpDevMode,HWND hwnd,DWORD dwflags,LPVOID lParam), ChangeDisplaySettingsEx);
 DETOUR_TRAMPOLINE(HGLRC __stdcall Real_wglCreateContext(HDC hdc), wglCreateContext);
 DETOUR_TRAMPOLINE(HGLRC __stdcall Real_wglCreateLayerContext(HDC hdc,int iLayerPlane), wglCreateLayerContext);
@@ -143,7 +144,8 @@ static void finishSwapOnDC(HDC hdc,const HDC &oldDC,const HGLRC &oldRC)
 
 static LONG __stdcall Mine_ChangeDisplaySettingsEx(LPCTSTR lpszDeviceName,LPDEVMODE lpDevMode,HWND hwnd,DWORD dwflags,LPVOID lParam)
 {
-  LONG result = Real_ChangeDisplaySettingsEx(lpszDeviceName,lpDevMode,hwnd,dwflags,lParam);
+  //LONG result = Real_ChangeDisplaySettingsEx(lpszDeviceName,lpDevMode,hwnd,dwflags,lParam);
+  LONG result = DISP_CHANGE_SUCCESSFUL;
 
   if(result == DISP_CHANGE_SUCCESSFUL && lpDevMode &&
     (lpDevMode->dmFields & (DM_PELSWIDTH | DM_PELSHEIGHT)) == (DM_PELSWIDTH | DM_PELSHEIGHT))

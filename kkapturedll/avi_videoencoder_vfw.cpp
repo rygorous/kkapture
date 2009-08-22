@@ -34,7 +34,8 @@ struct AVIVideoEncoderVFW::Internal
   PAVIFILE file;
   PAVISTREAM vid,vidC;
   PAVISTREAM aud;
-  WAVEFORMATEX wfx;
+  WAVEFORMATEX *wfx;
+  WAVEFORMATEX *targetFormat;
 
   char basename[_MAX_PATH];
   int segment;
@@ -44,7 +45,6 @@ struct AVIVideoEncoderVFW::Internal
 
   bool audioOk;
   AudioResampler resampler;
-  WAVEFORMATEX targetFormat;
   int resampleSize;
   short *resampleBuf;
 
@@ -156,6 +156,9 @@ void AVIVideoEncoderVFW::Cleanup()
     d->resampleBuf = 0;
     d->resampleSize = 0;
 
+    delete[] (unsigned char*) d->wfx;
+    delete[] (unsigned char*) d->targetFormat;
+
     AVIFileExit();
     printLog("avi_vfw: avifile shutdown complete\n");
     d->initialized = false;
@@ -199,7 +202,7 @@ void AVIVideoEncoderVFW::StartEncode()
     Cleanup();
 }
 
-void AVIVideoEncoderVFW::StartAudioEncode(const tWAVEFORMATEX *fmt)
+void AVIVideoEncoderVFW::StartAudioEncode()
 {
   AVISTREAMINFO asi;
   bool error = true;
@@ -213,9 +216,9 @@ void AVIVideoEncoderVFW::StartAudioEncode(const tWAVEFORMATEX *fmt)
   ZeroMemory(&asi,sizeof(asi));
   asi.fccType               = streamtypeAUDIO;
   asi.dwScale               = 1;
-  asi.dwRate                = fmt->nSamplesPerSec;
-  asi.dwSuggestedBufferSize = fmt->nAvgBytesPerSec;
-  asi.dwSampleSize          = fmt->nBlockAlign;
+  asi.dwRate                = d->targetFormat->nSamplesPerSec;
+  asi.dwSuggestedBufferSize = d->targetFormat->nAvgBytesPerSec;
+  asi.dwSampleSize          = d->targetFormat->nBlockAlign;
   strcpy_s(asi.szName,"Audio");
 
   // create the stream
@@ -226,7 +229,7 @@ void AVIVideoEncoderVFW::StartAudioEncode(const tWAVEFORMATEX *fmt)
   }
 
   // set format
-  if(AVIStreamSetFormat(d->aud,0,(LPVOID) fmt,sizeof(WAVEFORMATEX)) != AVIERR_OK)
+  if(AVIStreamSetFormat(d->aud,0,(LPVOID) d->targetFormat,sizeof(WAVEFORMATEX)+d->targetFormat->cbSize) != AVIERR_OK)
   {
     printLog("avi_vfw: AVIStreamSetFormat (audio) failed\n");
     goto cleanup;
@@ -234,17 +237,16 @@ void AVIVideoEncoderVFW::StartAudioEncode(const tWAVEFORMATEX *fmt)
 
   error = false;
   printLog("avi_vfw: opened audio stream at %d hz, %d channels, %d bits\n",
-    fmt->nSamplesPerSec, fmt->nChannels, fmt->wBitsPerSample);
+    d->targetFormat->nSamplesPerSec, d->targetFormat->nChannels, d->targetFormat->wBitsPerSample);
   audioSample = 0;
-  audioBytesSample = fmt->nBlockAlign;
-
-  d->targetFormat = *fmt;
+  audioBytesSample = d->targetFormat->nBlockAlign;
 
   // fill already written frames with no sound
-  unsigned char *buffer = new unsigned char[audioBytesSample * 1024];
-  int sampleFill = MulDiv(frame,fmt->nSamplesPerSec * fpsDenom,fpsNum);
+  int fillBytesSample = d->wfx->nBlockAlign;
+  unsigned char *buffer = new unsigned char[fillBytesSample * 1024];
+  int sampleFill = MulDiv(frame,d->wfx->nSamplesPerSec * fpsDenom,fpsNum);
 
-  memset(buffer,0,audioBytesSample * 1024);
+  memset(buffer,0,fillBytesSample * 1024);
   for(int samplePos=0;samplePos<sampleFill;samplePos+=1024)
     WriteAudioFrame(buffer,min(sampleFill-samplePos,1024));
 
@@ -292,6 +294,8 @@ AVIVideoEncoderVFW::AVIVideoEncoderVFW(const char *name,int _fpsNum,int _fpsDeno
   d->audioOk = false;
   d->resampleSize = 0;
   d->resampleBuf = 0;
+  d->wfx = 0;
+  d->targetFormat = 0;
 
   d->initialized = false;
   d->formatSet = false;
@@ -334,7 +338,7 @@ void AVIVideoEncoderVFW::WriteFrame(const unsigned char *buffer)
 
       StartEncode();
       if(gotAudio)
-        StartAudioEncode(&d->wfx);
+        StartAudioEncode();
     }
 
     LONG written = 0;
@@ -346,16 +350,20 @@ void AVIVideoEncoderVFW::WriteFrame(const unsigned char *buffer)
 
 void AVIVideoEncoderVFW::SetAudioFormat(const tWAVEFORMATEX *fmt)
 {
-  d->wfx = *fmt;
-  d->audioOk = d->resampler.Init(fmt,d->aud ? &d->targetFormat : fmt);
+  delete[] (unsigned char*) d->wfx;
+  d->wfx = CopyFormat(fmt);
+  if(!d->targetFormat || !d->aud)
+  {
+    delete[] (unsigned char*) d->targetFormat;
+    d->targetFormat = BounceFormat(fmt);
+  }
+  d->audioOk = d->resampler.Init(fmt,d->targetFormat);
 }
 
-void AVIVideoEncoderVFW::GetAudioFormat(tWAVEFORMATEX *fmt)
+tWAVEFORMATEX *AVIVideoEncoderVFW::GetAudioFormat()
 {
-  if(d->aud)
-    *fmt = d->wfx;
-  else
-    ZeroMemory(fmt,sizeof(tWAVEFORMATEX));
+  if(!d->aud) return 0;
+  return CopyFormat(d->wfx);
 }
 
 void AVIVideoEncoderVFW::WriteAudioFrame(const void *buffer,int samples)
@@ -363,15 +371,15 @@ void AVIVideoEncoderVFW::WriteAudioFrame(const void *buffer,int samples)
   Lock lock(d->lock);
 
   if(params.CaptureAudio && !d->aud)
-    StartAudioEncode(&d->wfx);
+    StartAudioEncode();
 
-  if(d->aud)
+  if(d->aud && d->audioOk)
   {
     int needSize = d->resampler.MaxOutputSamples(samples);
     if(needSize > d->resampleSize)
     {
       delete[] d->resampleBuf;
-      d->resampleBuf = new short[needSize * 4];
+      d->resampleBuf = new short[needSize * 2];
       d->resampleSize = needSize;
     }
 
@@ -380,8 +388,6 @@ void AVIVideoEncoderVFW::WriteAudioFrame(const void *buffer,int samples)
     if(outSamples)
     {
       LONG written = 0;
-      /*AVIStreamWrite(d->aud,audioSample,samples,(LPVOID) buffer,
-        samples*audioBytesSample,0,0,&written);*/
       AVIStreamWrite(d->aud,audioSample,outSamples,(LPVOID) d->resampleBuf,
         outSamples*audioBytesSample,0,0,&written);
       audioSample += outSamples;

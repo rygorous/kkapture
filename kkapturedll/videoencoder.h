@@ -34,7 +34,7 @@ public:
   virtual void WriteFrame(const unsigned char *buffer) = 0;
 
   virtual void SetAudioFormat(const struct tWAVEFORMATEX *fmt) = 0;
-  virtual void GetAudioFormat(struct tWAVEFORMATEX *fmt) = 0;
+  virtual tWAVEFORMATEX *GetAudioFormat() = 0;
   virtual void WriteAudioFrame(const void *buffer,int samples) = 0;
 };
 
@@ -48,7 +48,7 @@ public:
   virtual void WriteFrame(const unsigned char *buffer);
 
   virtual void SetAudioFormat(const struct tWAVEFORMATEX *fmt);
-  virtual void GetAudioFormat(struct tWAVEFORMATEX *fmt);
+  virtual tWAVEFORMATEX *GetAudioFormat();
   virtual void WriteAudioFrame(const void *buffer,int samples);
 };
 

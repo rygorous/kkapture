@@ -51,7 +51,7 @@ public:
   virtual void WriteFrame(const unsigned char *buffer);
 
   virtual void SetAudioFormat(const tWAVEFORMATEX *fmt);
-  virtual void GetAudioFormat(tWAVEFORMATEX *fmt);
+  virtual tWAVEFORMATEX *GetAudioFormat();
   virtual void WriteAudioFrame(const void *buffer,int samples);
 };
 

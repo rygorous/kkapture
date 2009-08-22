@@ -32,10 +32,12 @@ struct tWAVEFORMATEX;
 class AudioResampler
 {
   bool Initialized;
-  bool In8Bit;
+  int InBits; // currently we only have 8/16 bit integer or 32bit float
   int InChans;
   int InRate,OutRate;
   bool Identical;
+  
+  int OutChans;
 
   int tFrac;
   int dStep;
@@ -43,7 +45,7 @@ class AudioResampler
   int InitSamples;
   float ChannelBuf[2][4];
 
-  template<class T> int ResampleChan(T *in,short *out,int nInSamples,float *chanBuf);
+  template<class T> int ResampleChan(T *in,short *out,int nInSamples,float *chanBuf,int stride,bool add,float amp);
   template<class T> int ResampleInit(T *in,int nInSamples,float *chanBuf);
   template<class T> int ResampleBlock(T *in,short *out,int nInSamples);
 

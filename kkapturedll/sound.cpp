@@ -304,7 +304,7 @@ class MyDirectSoundBuffer8 : public IDirectSoundBuffer8
   PBYTE Buffer;
   DWORD Flags;
   DWORD Bytes;
-  WAVEFORMATEX Format;
+  WAVEFORMATEX *Format;
   DWORD Frequency;
   BOOL Playing,Looping;
   LONG Volume;
@@ -320,7 +320,7 @@ class MyDirectSoundBuffer8 : public IDirectSoundBuffer8
   {
     DWORD frame = getFrameTiming() - FirstFrame;
     DWORD samplePos = UMulDiv(frame,Frequency * frameRateDenom,frameRateScaled);
-    DWORD bufferPos = samplePos * Format.nBlockAlign;
+    DWORD bufferPos = samplePos * Format->nBlockAlign;
     DWORD nextSize = bufferPos - SamplesPlayed;
 
     return nextSize;
@@ -331,7 +331,7 @@ class MyDirectSoundBuffer8 : public IDirectSoundBuffer8
     if(!Playing)
       return 0;
 
-    return (PlayCursor + 128 * Format.nBlockAlign) % Bytes;
+    return (PlayCursor + 128 * Format->nBlockAlign) % Bytes;
   }
 
 public:
@@ -344,19 +344,20 @@ public:
     memset(Buffer,0,bufBytes);
 
     if(fmt)
-      Format = *fmt;
+      Format = CopyFormat(fmt);
     else
     {
-      Format.wFormatTag = WAVE_FORMAT_PCM;
-      Format.nChannels = 2;
-      Format.nSamplesPerSec = 44100;
-      Format.nAvgBytesPerSec = 176400;
-      Format.nBlockAlign = 4;
-      Format.wBitsPerSample = 16;
-      Format.cbSize = 0;
+      Format = new WAVEFORMATEX;
+      Format->wFormatTag = WAVE_FORMAT_PCM;
+      Format->nChannels = 2;
+      Format->nSamplesPerSec = 44100;
+      Format->nAvgBytesPerSec = 176400;
+      Format->nBlockAlign = 4;
+      Format->wBitsPerSample = 16;
+      Format->cbSize = 0;
     }
 
-    Frequency = Format.nSamplesPerSec;
+    Frequency = Format->nSamplesPerSec;
 
     Playing = FALSE;
     Looping = FALSE;
@@ -378,6 +379,7 @@ public:
     }
 
     DeleteCriticalSection(&BufferLock);
+    delete Format;
     delete[] Buffer;
   }
 
@@ -444,7 +446,7 @@ public:
     // skip some milliseconds of silence at start
     if(SkipAllowed)
     {
-      DWORD maxskip = UMulDiv(Format.nSamplesPerSec,Format.nBlockAlign*params.SoundMaxSkip,1000);
+      DWORD maxskip = UMulDiv(Format->nSamplesPerSec,Format->nBlockAlign*params.SoundMaxSkip,1000);
       DWORD pp = PlayCursor;
       DWORD i;
 
@@ -494,13 +496,13 @@ public:
 
   virtual HRESULT __stdcall GetFormat(LPWAVEFORMATEX pwfxFormat, DWORD dwSizeAllocated, LPDWORD pdwSizeWritten)
   {
-    int size = min(dwSizeAllocated,sizeof(WAVEFORMATEX));
+    int size = min(dwSizeAllocated,Format ? sizeof(WAVEFORMATEX) + Format->cbSize : 0);
 
     if(pdwSizeWritten)
       *pdwSizeWritten = size;
 
     if(pwfxFormat)
-      memcpy(pwfxFormat,&Format,size);
+      memcpy(pwfxFormat,Format,size);
 
     return S_OK;
   }
@@ -556,7 +558,7 @@ public:
     if(dwFlags & DSBLOCK_ENTIREBUFFER)
       dwBytes = Bytes;
 
-    if(dwOffset >= Bytes || !dwBytes || dwBytes > Bytes)
+    if(dwOffset >= Bytes || dwBytes > Bytes)
     {
       LeaveCriticalSection(&BufferLock);
       return DSERR_INVALIDPARAM;
@@ -598,7 +600,7 @@ public:
 
     if(!(Flags & DSBCAPS_PRIMARYBUFFER)/* && (!params.FairlightHack || Looping)*/)
     {
-      encoder->SetAudioFormat(&Format);
+      encoder->SetAudioFormat(Format);
       playBuffer = this;
       FirstFrame = getFrameTiming();
     }
@@ -614,9 +616,10 @@ public:
 
   virtual HRESULT __stdcall SetFormat(LPCWAVEFORMATEX pcfxFormat)
   {
-    Format = *pcfxFormat;
+    delete Format;
+    Format = CopyFormat(pcfxFormat);
     if(playBuffer==this)
-      encoder->SetAudioFormat(&Format);
+      encoder->SetAudioFormat(Format);
 
     return S_OK;
   }
@@ -636,10 +639,10 @@ public:
   virtual HRESULT __stdcall SetFrequency(DWORD dwFrequency)
   {
     Frequency = dwFrequency;
-    Format.nSamplesPerSec = dwFrequency;
-    Format.nAvgBytesPerSec = Format.nBlockAlign * dwFrequency;
+    Format->nSamplesPerSec = dwFrequency;
+    Format->nAvgBytesPerSec = Format->nBlockAlign * dwFrequency;
     if(playBuffer==this)
-      encoder->SetAudioFormat(&Format);
+      encoder->SetAudioFormat(Format);
 
     return S_OK;
   }
@@ -687,7 +690,7 @@ public:
     // calculate number of samples processed since last frame, then encode
     DWORD frameSize = NextFrameSize();
     DWORD end = PlayCursor + frameSize;
-    DWORD align = Format.nBlockAlign;
+    DWORD align = Format->nBlockAlign;
 
     if(end - PlayCursor > Bytes)
     {
@@ -881,7 +884,7 @@ static WaveOutImpl *currentWaveOut = 0;
 class WaveOutImpl
 {
   char MagicCookie[16];
-  WAVEFORMATEX Format;
+  WAVEFORMATEX *Format;
   DWORD_PTR Callback;
   DWORD_PTR CallbackInstance;
   DWORD OpenFlags;
@@ -963,7 +966,7 @@ public:
   {
     videoNeedEncoder();
 
-    Format = *fmt;
+    Format = CopyFormat(fmt);
     Callback = cb;
     CallbackInstance = cbInstance;
     OpenFlags = fdwOpen;
@@ -984,6 +987,7 @@ public:
 
   ~WaveOutImpl()
   {
+    delete Format;
     callbackMessage(WOM_CLOSE,0,0);
   }
 
@@ -1039,7 +1043,7 @@ public:
     {
       FirstFrame = getFrameTiming();
       FirstWriteFrame = FirstFrame;
-      encoder->SetAudioFormat(&Format);
+      encoder->SetAudioFormat(Format);
       currentWaveOut = this;
     }
 
@@ -1096,7 +1100,10 @@ public:
   MMRESULT getPosition(MMTIME *mmt,UINT size)
   {
     if(!mmt || size < sizeof(MMTIME))
+    {
+      printLog("sound: invalid param to getPosition");
       return MMSYSERR_INVALPARAM;
+    }
 
     if(size > sizeof(MMTIME))
     {
@@ -1124,15 +1131,12 @@ public:
     {
     case TIME_BYTES:
     case TIME_SAMPLES:
-      now = UMulDiv(relFrame,Format.nSamplesPerSec * frameRateDenom,frameRateScaled);
-      if(mmt->wType == TIME_BYTES)
-        mmt->u.cb = now * Format.nBlockAlign;
+    case TIME_MS:
+      now = UMulDiv(relFrame,Format->nSamplesPerSec * frameRateDenom,frameRateScaled);
+      if(mmt->wType == TIME_BYTES || mmt->wType == TIME_MS) // yes, TIME_MS seems to return *bytes*. WHATEVER.
+        mmt->u.cb = now * Format->nBlockAlign;
       else if(mmt->wType == TIME_SAMPLES)
         mmt->u.sample = now;
-      break;
-
-    case TIME_MS:
-      mmt->u.ms = UMulDiv(relFrame,1000 * frameRateDenom,frameRateScaled);
       break;
     }
 
@@ -1143,8 +1147,8 @@ public:
   void encodeNoAudio(DWORD sampleCount)
   {
     // no new/delete, we do not know from where this might be called
-    void *buffer = _alloca(256 * Format.nBlockAlign);
-    memset(buffer,0,256 * Format.nBlockAlign);
+    void *buffer = _alloca(256 * Format->nBlockAlign);
+    memset(buffer,0,256 * Format->nBlockAlign);
 
     while(sampleCount)
     {
@@ -1158,9 +1162,9 @@ public:
   {
     // calculate number of samples to write
     int frame = getFrameTiming() - FirstWriteFrame;
-    int align = Format.nBlockAlign;
+    int align = Format->nBlockAlign;
 
-    DWORD sampleNew = UMulDiv(frame,Format.nSamplesPerSec * frameRateDenom,frameRateScaled);
+    DWORD sampleNew = UMulDiv(frame,Format->nSamplesPerSec * frameRateDenom,frameRateScaled);
     DWORD sampleCount = sampleNew - CurrentSamplePos;
 
     if(!Current || Paused) // write one frame of no audio
