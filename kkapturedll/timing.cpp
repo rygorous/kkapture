@@ -539,6 +539,12 @@ void nextFrameTiming()
     SetWaitableTimer(stuckTimer,&due,0,0,0,FALSE);
   }
 
+  if(exitNextFrame)
+  {
+    printLog("main: clean exit requested, doing my best...\n");
+    ExitProcess(0);
+  }
+
   // make sure there's always a message in the queue for next frame
   // (some old hjb intros stop when there's no new messages)
   PostMessage(GetForegroundWindow(),WM_NULL,0,0);
