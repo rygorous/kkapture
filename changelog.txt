@@ -1,3 +1,8 @@
+version 0.09:
+* new startup instrumentation: yet another new approach to entry point determination (to work with address space layout randomization)
+* "attempt clean exit" key (right ctrl; has good chances of producing a usable .AVI, unlike ctrl-break)
+* 
+
 version 0.08:
 * "frame rate" edit control now supports arbitrary positive decimal ("12.3456") and fractional ("60000/1001") framerates
 * "BASS/FMOD interception" added. BASS interception removes the need for the fairlight hack, FMOD interception fixes FMODs

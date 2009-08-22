@@ -40,7 +40,14 @@ static TCHAR ExeName[_MAX_PATH];
 static TCHAR Arguments[MAX_ARGS];
 static ParameterBlock Params;
 
-// some dialog helpers
+// ---- some dialog helpers
+
+static BOOL ErrorMsg(const TCHAR *msg,HWND hWnd=0)
+{
+  MessageBox(hWnd,msg,_T(".kkapture"),MB_ICONERROR|MB_OK);
+  return FALSE; // so you can conveniently "return ErrorMsg(...)"
+}
+
 static BOOL EnableDlgItem(HWND hWnd,int id,BOOL bEnable)
 {
   HWND hCtrlWnd = GetDlgItem(hWnd,id);
@@ -313,47 +320,25 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         // validate everything and fill out parameter block
         HANDLE hFile = CreateFile(ExeName,GENERIC_READ,0,0,OPEN_EXISTING,0,0);
         if(hFile == INVALID_HANDLE_VALUE)
-        {
-          MessageBox(hWndDlg,_T("You need to specify a valid executable in the 'demo' field."),
-            _T(".kkapture"),MB_ICONERROR|MB_OK);
-          return TRUE;
-        }
+          return !ErrorMsg(_T("You need to specify a valid executable in the 'demo' field."),hWndDlg);
         else
           CloseHandle(hFile);
 
         int frameRateNum,frameRateDenom;
         if(!ParsePositiveRational(frameRateStr,frameRateNum,frameRateDenom)
           || frameRateNum < 0 || frameRateNum / frameRateDenom >= 1000)
-        {
-          MessageBox(hWndDlg,_T("Please enter a valid frame rate between 0 and 1000 "
-            "(either as decimal or rational)."),_T(".kkapture"),MB_ICONERROR|MB_OK);
-          return TRUE;
-        }
-        /*double frameRate = atof(frameRateStr);
-        if(frameRate <= 0.0 || frameRate >= 1000.0)
-        {
-          MessageBox(hWndDlg,_T("Please enter a valid frame rate."),
-            _T(".kkapture"),MB_ICONERROR|MB_OK);
-          return TRUE;
-        }*/
+          return !ErrorMsg(_T("Please enter a valid frame rate between 0 and 1000 "
+            "(either as decimal or rational)."),hWndDlg);
 
         if(autoSkip)
         {
           double fft = atof(firstFrameTimeout);
           if(fft <= 0.0 || fft >= 3600.0)
-          {
-            MessageBox(hWndDlg,_T("'Initial frame timeout' must be between 0 and 3600 seconds."),
-              _T(".kkapture"),MB_ICONERROR|MB_OK);
-            return TRUE;
-          }
+            return !ErrorMsg(_T("'Initial frame timeout' must be between 0 and 3600 seconds."),hWndDlg);
 
           double oft = atof(otherFrameTimeout);
           if(oft <= 0.0 || oft >= 3600.0)
-          {
-            MessageBox(hWndDlg,_T("'Other frames timeout' must be between 0 and 3600 seconds."),
-              _T(".kkapture"),MB_ICONERROR|MB_OK);
-            return TRUE;
-          }
+            return !ErrorMsg(_T("'Other frames timeout' must be between 0 and 3600 seconds."),hWndDlg);
 
           Params.FirstFrameTimeout = DWORD(fft*1000);
           Params.FrameTimeout = DWORD(oft*1000);
@@ -361,7 +346,6 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
 
         Params.FrameRateNum = frameRateNum;
         Params.FrameRateDenom = frameRateDenom;
-        //Params.FrameRate = int(frameRate * 100);
         Params.Encoder = (EncoderType) (1 + SendDlgItemMessage(hWndDlg,IDC_ENCODER,CB_GETCURSEL,0,0));
 
         Params.CaptureVideo = IsDlgButtonChecked(hWndDlg,IDC_VCAPTURE) == BST_CHECKED;
@@ -493,53 +477,55 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
 
 // ----
 
-static DWORD GetEntryPoint(TCHAR *fileName)
+static void *GetEntryPoint(HANDLE hProcess,void *baseAddr)
 {
   IMAGE_DOS_HEADER doshdr;
   IMAGE_NT_HEADERS32 nthdr;
   DWORD read;
+  BYTE *base = (BYTE *) baseAddr;
 
-  HANDLE hFile = CreateFile(fileName,GENERIC_READ,FILE_SHARE_READ,0,OPEN_EXISTING,0,0);
-  if(hFile == INVALID_HANDLE_VALUE)
+  if(!ReadProcessMemory(hProcess,base,&doshdr,sizeof(doshdr),&read) || read != sizeof(doshdr)
+    || doshdr.e_magic != IMAGE_DOS_SIGNATURE)
     return 0;
 
-  if(!ReadFile(hFile,&doshdr,sizeof(doshdr),&read,0) || read != sizeof(doshdr))
-  {
-    CloseHandle(hFile);
+  if(!ReadProcessMemory(hProcess,base + doshdr.e_lfanew,&nthdr,sizeof(nthdr),&read) || read != sizeof(nthdr))
     return 0;
-  }
-
-  if(doshdr.e_magic != IMAGE_DOS_SIGNATURE)
-  {
-    CloseHandle(hFile);
-    return 0;
-  }
-
-  if(SetFilePointer(hFile,doshdr.e_lfanew,0,FILE_BEGIN) == INVALID_SET_FILE_POINTER)
-  {
-    CloseHandle(hFile);
-    return 0;
-  }
-
-  if(!ReadFile(hFile,&nthdr,sizeof(nthdr),&read,0) || read != sizeof(nthdr))
-  {
-    CloseHandle(hFile);
-    return 0;
-  }
-
-  CloseHandle(hFile);
 
   if(nthdr.Signature != IMAGE_NT_SIGNATURE
     || nthdr.FileHeader.Machine != IMAGE_FILE_MACHINE_I386
-    /*|| nthdr.FileHeader.SizeOfOptionalHeader != IMAGE_SIZEOF_NT_OPTIONAL32_HEADER*/
     || nthdr.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR32_MAGIC
     || !nthdr.OptionalHeader.AddressOfEntryPoint)
     return 0;
 
-  return nthdr.OptionalHeader.ImageBase + nthdr.OptionalHeader.AddressOfEntryPoint;
+  return (void*) (base + nthdr.OptionalHeader.AddressOfEntryPoint);
 }
 
-static bool PrepareInstrumentation(HANDLE hProcess,BYTE *workArea,TCHAR *dllName,DWORD entryPointAddr)
+static void *DetermineEntryPoint(HANDLE hProcess)
+{
+  // go through the virtual address range of the target process and try to find the executable
+  // in there.
+
+  MEMORY_BASIC_INFORMATION mbi;
+  BYTE *current = (BYTE *) 0x10000; // first 64k are always reserved
+
+  while(VirtualQueryEx(hProcess,current,&mbi,sizeof(mbi)) > 0)
+  {
+    // we only care about commited non-guard pages
+    if(mbi.State == MEM_COMMIT && !(mbi.Protect & PAGE_GUARD))
+    {
+      // was an executable mapped starting here?
+      void *entry = GetEntryPoint(hProcess,mbi.BaseAddress);
+      if(entry)
+        return entry;
+    }
+
+    current += mbi.RegionSize;
+  }
+
+  return 0; // nothing found
+}
+
+static bool PrepareInstrumentation(HANDLE hProcess,BYTE *workArea,TCHAR *dllName,void *entryPointPtr)
 {
   BYTE origCode[24];
   struct bufferType
@@ -552,7 +538,7 @@ static bool PrepareInstrumentation(HANDLE hProcess,BYTE *workArea,TCHAR *dllName
   DWORD offsWorkArea = (DWORD) workArea;
   BYTE *code = buffer.code;
   BYTE *loadLibrary = (BYTE *) GetProcAddress(GetModuleHandle(_T("kernel32.dll")),"LoadLibraryA");
-  BYTE *entryPoint = (BYTE *) entryPointAddr;
+  BYTE *entryPoint = (BYTE *) entryPointPtr;
 
   // Read original startup code
   DWORD amount = 0;
@@ -611,22 +597,11 @@ static bool PrepareInstrumentation(HANDLE hProcess,BYTE *workArea,TCHAR *dllName
   // Finally, write everything into process memory
   DWORD oldProtect;
 
-  if(!VirtualProtectEx(hProcess,workArea,sizeof(buffer),PAGE_EXECUTE_READWRITE,&oldProtect))
-    return false;
-
-  if(!WriteProcessMemory(hProcess,workArea,&buffer,sizeof(buffer),0))
-    return false;
-
-  if(!VirtualProtectEx(hProcess,entryPoint,sizeof(jumpCode),PAGE_EXECUTE_READWRITE,&oldProtect))
-    return false;
-    
-  if(!WriteProcessMemory(hProcess,entryPoint,jumpCode,sizeof(jumpCode),0))
-    return false;
-    
-  if(!FlushInstructionCache(hProcess,entryPoint,sizeof(jumpCode)))
-    return false;
-
-  return true;
+  return VirtualProtectEx(hProcess,workArea,sizeof(buffer),PAGE_EXECUTE_READWRITE,&oldProtect)
+    && WriteProcessMemory(hProcess,workArea,&buffer,sizeof(buffer),0)
+    && VirtualProtectEx(hProcess,entryPoint,sizeof(jumpCode),PAGE_EXECUTE_READWRITE,&oldProtect)
+    && WriteProcessMemory(hProcess,entryPoint,jumpCode,sizeof(jumpCode),0)
+    && FlushInstructionCache(hProcess,entryPoint,sizeof(jumpCode)); 
 }
 
 // ----
@@ -685,46 +660,50 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
         CloseHandle(pi.hProcess);
       }
       else
-        MessageBox(0,_T("Couldn't execute target process"),
-          _T(".kkapture"),MB_ICONERROR|MB_OK);
+        ErrorMsg(_T("Couldn't execute target process"));
     }
     else
     {
-      DWORD entryPoint = GetEntryPoint(ExeName);
-      if(!entryPoint)
-        MessageBox(0,_T("Not a supported executable format."),
-          _T(".kkapture"),MB_ICONERROR|MB_OK);
-      else if(CreateProcess(ExeName,commandLine,0,0,TRUE,
+      if(CreateProcess(ExeName,commandLine,0,0,TRUE,
         CREATE_DEFAULT_ERROR_MODE|CREATE_SUSPENDED,0,0,&si,&pi))
       {
-        // get some memory in the target processes' space for us to work with
-        void *workMem = VirtualAllocEx(pi.hProcess,0,4096,MEM_COMMIT,
-          PAGE_EXECUTE_READWRITE);
-
-        // do all the mean initialization faking code here
-        if(PrepareInstrumentation(pi.hProcess,(BYTE *) workMem,dllpath,entryPoint))
+        if(void *entryPoint = DetermineEntryPoint(pi.hProcess))
         {
-          // we're done with our evil machinations, so rock on
-          ResumeThread(pi.hThread);
+          // get some memory in the target processes' space for us to work with
+          void *workMem = VirtualAllocEx(pi.hProcess,0,4096,MEM_COMMIT,
+            PAGE_EXECUTE_READWRITE);
 
-          // wait for target process to finish
-          WaitForSingleObject(pi.hProcess,INFINITE);
-          CloseHandle(pi.hProcess);
+          // do all the mean initialization faking code here
+          if(PrepareInstrumentation(pi.hProcess,(BYTE *) workMem,dllpath,entryPoint))
+          {
+            // we're done with our evil machinations, so let the process run
+            ResumeThread(pi.hThread);
+
+            // wait for target process to finish
+            WaitForSingleObject(pi.hProcess,INFINITE);
+          }
+          else
+          {
+            ErrorMsg(_T("Startup instrumentation failed"));
+            TerminateProcess(pi.hProcess,0);
+          }
         }
         else
         {
-          MessageBox(0,_T("Startup instrumentation failed"),
-            _T(".kkapture"),MB_ICONERROR|MB_OK);
+          ErrorMsg(_T("Couldn't determine entry point!"));
+          ResumeThread(pi.hThread);
           TerminateProcess(pi.hProcess,0);
-          CloseHandle(pi.hProcess);
         }
+
+        CloseHandle(pi.hProcess);
       }
       else
-        MessageBox(0,_T("Couldn't execute target process"),
-          _T(".kkapture"),MB_ICONERROR|MB_OK);
+        ErrorMsg(_T("Couldn't execute target process"));
     }
 
     // cleanup
     CloseHandle(hParamMapping);
   }
+
+  return 0;
 }
