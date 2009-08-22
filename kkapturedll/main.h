@@ -33,6 +33,7 @@ class VideoEncoder;
 // global variables
 extern VideoEncoder *encoder;
 extern int frameRateScaled,frameRateDenom;
+extern bool exitNextFrame;
 
 // parameter block submitted by main app
 static const int PARAMVERSION = 3;

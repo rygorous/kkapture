@@ -30,6 +30,7 @@
 
 VideoEncoder *encoder = 0;
 int frameRateScaled = 1000, frameRateDenom = 100;
+bool exitNextFrame = false;
 ParameterBlock params;
 
 static CRITICAL_SECTION shuttingDown;
@@ -61,6 +62,9 @@ LRESULT CALLBACK LLKeyboardHook(int code,WPARAM wParam,LPARAM lParam)
 
   if(code == HC_ACTION && hook->vkCode == VK_CANCEL) // ctrl+break
     wannaExit = true;
+
+  if(code == HC_ACTION && hook->vkCode == VK_RCONTROL) // right control => try "clean" exit
+    exitNextFrame = true;
 
   LRESULT result = CallNextHookEx(hKeyHook,code,wParam,lParam);
   if(wannaExit)
@@ -119,10 +123,11 @@ static void done()
     encoder = 0;
 
     doneTiming();
-    doneSound();
-    doneVideo();
-    
+
     delete realEncoder;
+
+    doneSound();
+    doneVideo();    
 
     printLog("main: everything ok, closing log.\n");
     if(params.PowerDownAfterwards)

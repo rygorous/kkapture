@@ -555,7 +555,10 @@ static bool PrepareInstrumentation(HANDLE hProcess,BYTE *workArea,TCHAR *dllName
   BYTE *entryPoint = (BYTE *) entryPointAddr;
 
   // Read original startup code
-  if(!ReadProcessMemory(hProcess,entryPoint,origCode,sizeof(origCode),0))
+  DWORD amount = 0;
+  memset(origCode,0xcc,sizeof(origCode));
+  if(!ReadProcessMemory(hProcess,entryPoint,origCode,sizeof(origCode),&amount)
+    && (amount == 0 || GetLastError() != 0x12b)) // 0x12b = request only partially completed
     return false;
 
   // Generate Initialization hook
@@ -709,8 +712,12 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
           CloseHandle(pi.hProcess);
         }
         else
+        {
           MessageBox(0,_T("Startup instrumentation failed"),
-          _T(".kkapture"),MB_ICONERROR|MB_OK);
+            _T(".kkapture"),MB_ICONERROR|MB_OK);
+          TerminateProcess(pi.hProcess,0);
+          CloseHandle(pi.hProcess);
+        }
       }
       else
         MessageBox(0,_T("Couldn't execute target process"),
