@@ -156,9 +156,6 @@ void AVIVideoEncoderVFW::Cleanup()
     d->resampleBuf = 0;
     d->resampleSize = 0;
 
-    delete[] (unsigned char*) d->wfx;
-    delete[] (unsigned char*) d->targetFormat;
-
     AVIFileExit();
     printLog("avi_vfw: avifile shutdown complete\n");
     d->initialized = false;
@@ -308,6 +305,9 @@ AVIVideoEncoderVFW::~AVIVideoEncoderVFW()
 {
   Cleanup();
   DeleteCriticalSection(&d->lock);
+  delete[] (unsigned char*) d->wfx;
+  delete[] (unsigned char*) d->targetFormat;
+
   delete d;
 }
 

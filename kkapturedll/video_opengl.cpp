@@ -144,8 +144,7 @@ static void finishSwapOnDC(HDC hdc,const HDC &oldDC,const HGLRC &oldRC)
 
 static LONG __stdcall Mine_ChangeDisplaySettingsEx(LPCTSTR lpszDeviceName,LPDEVMODE lpDevMode,HWND hwnd,DWORD dwflags,LPVOID lParam)
 {
-  //LONG result = Real_ChangeDisplaySettingsEx(lpszDeviceName,lpDevMode,hwnd,dwflags,lParam);
-  LONG result = DISP_CHANGE_SUCCESSFUL;
+  LONG result = Real_ChangeDisplaySettingsEx(lpszDeviceName,lpDevMode,hwnd,dwflags,lParam);
 
   if(result == DISP_CHANGE_SUCCESSFUL && lpDevMode &&
     (lpDevMode->dmFields & (DM_PELSWIDTH | DM_PELSHEIGHT)) == (DM_PELSWIDTH | DM_PELSHEIGHT))

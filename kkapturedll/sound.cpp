@@ -26,6 +26,7 @@
 #include "util.h"
 #include "video.h"
 #include <psapi.h>
+#define DIRECTSOUND_VERSION 0x0800
 #include <dsound.h>
 #pragma comment(lib,"dsound.lib")
 #pragma comment(lib,"dxguid.lib")

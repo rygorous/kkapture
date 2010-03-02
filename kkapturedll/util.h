@@ -27,6 +27,7 @@
 void initLog();
 void closeLog();
 void printLog(const char *format,...);
+void printLogHex(void *buffer,int size);
 
 // ---- logging used to debug kkapture
 //#define TRACE(x) printLog x

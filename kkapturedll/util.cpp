@@ -53,6 +53,39 @@ void printLog(const char *format,...)
   }
 }
 
+void printLogHex(void *buffer,int size)
+{
+  static const char hex2ch[] = "0123456789ABCDEF";
+
+  unsigned char *p = (unsigned char*) buffer;
+  char linebuf[128]; // yes, this is enough.
+
+  // process in lines of 16 bytes each
+  while(size)
+  {
+    int bytes = min(size,16);
+    memset(linebuf,' ',sizeof(linebuf));
+    linebuf[16*3] = '|';
+
+    // prepare hexdump of one line
+    for(int i=0;i<bytes;i++)
+    {
+      int byte = p[i];
+
+      linebuf[i*3+0] = hex2ch[byte >> 4];
+      linebuf[i*3+1] = hex2ch[byte & 15];
+      linebuf[16*3+2+i] = (byte >= 32 && byte <= 126) ? byte : '.';
+    }
+
+    // finish and print it
+    linebuf[16*3+2+bytes] = 0;
+    printLog("%s\n",linebuf);
+
+    p += bytes;
+    size -= bytes;
+  }
+}
+
 // ---- vtable patching
 
 PBYTE DetourCOM(IUnknown *obj,int vtableOffs,PBYTE newFunction)
