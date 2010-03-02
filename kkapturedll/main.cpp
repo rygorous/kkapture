@@ -156,7 +156,7 @@ static void done()
         CloseHandle(hToken);
       }
       else
-        printLog("main: couldn't aquire process token, can't power off.\n");
+        printLog("main: couldn't acquire process token, can't power off.\n");
     }
 
     closeLog();

@@ -319,7 +319,7 @@ DWORD __stdcall Mine_WaitForSingleObject(HANDLE hHandle,DWORD dwMilliseconds)
 DWORD __stdcall Mine_WaitForMultipleObjects(DWORD nCount,CONST HANDLE *lpHandles,BOOL bWaitAll,DWORD dwMilliseconds)
 {
   // infinite waits are always passed through
-  if(dwMilliseconds <= 0x7fffffff)
+  if(dwMilliseconds >= 0x7fffffff)
     return Real_WaitForMultipleObjects(nCount,lpHandles,bWaitAll,dwMilliseconds);
   else
   {
@@ -351,7 +351,7 @@ DWORD __stdcall Mine_WaitForMultipleObjects(DWORD nCount,CONST HANDLE *lpHandles
 DWORD __stdcall Mine_MsgWaitForMultipleObjects(DWORD nCount,CONST HANDLE *lpHandles,BOOL bWaitAll,DWORD dwMilliseconds,DWORD dwWakeMask)
 {
   // infinite waits are always passed through
-  if(dwMilliseconds <= 0x7fffffff)
+  if(dwMilliseconds >= 0x7fffffff)
     return Real_MsgWaitForMultipleObjects(nCount,lpHandles,bWaitAll,dwMilliseconds,dwWakeMask);
   else
   {
