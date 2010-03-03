@@ -152,7 +152,7 @@ WAVEFORMATEX *CopyFormat(const WAVEFORMATEX *src)
     return 0;
 
   // try to simplify audio format if possible
-  if(src->wFormatTag==WAVE_FORMAT_EXTENSIBLE)
+  if(src->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
   {
     static unsigned char WaveFormatTag[8] = { 0x80,0x00,0x00,0xaa,0x00,0x38,0x9b,0x71 };
 
@@ -172,12 +172,20 @@ WAVEFORMATEX *CopyFormat(const WAVEFORMATEX *src)
     }
   }
 
-  // general case
   int size = sizeof(WAVEFORMATEX)+src->cbSize;
+  if(src->wFormatTag == WAVE_FORMAT_PCM) // a common bug is leaving cbSize uninitialized. work around it.
+    size = sizeof(WAVEFORMATEX);
+
+  // general case
   unsigned char *buffer = new unsigned char[size];
   memcpy(buffer,src,size);
 
-  return (WAVEFORMATEX*) buffer;
+  // modify the format, if necessary.
+  WAVEFORMATEX *outFmt = (WAVEFORMATEX*) buffer;
+  if(src->wFormatTag == WAVE_FORMAT_PCM) // workaround part two
+    outFmt->cbSize = 0;
+
+  return outFmt;
 }
 
 WAVEFORMATEX *BounceFormat(const WAVEFORMATEX *src)
