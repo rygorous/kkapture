@@ -57,12 +57,17 @@ DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_timeSetEvent(UINT uDelay,UINT uResolut
 DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_timeKillEvent(UINT uTimerID), timeKillEvent);
 DETOUR_TRAMPOLINE(UINT_PTR __stdcall Real_SetTimer(HWND hWnd,UINT_PTR uIDEvent,UINT uElapse,TIMERPROC lpTimerFunc), SetTimer);
 
+// if timer functions are called frequently in a single frame, assume the app is waiting for the
+// current time to change and advance it. this is the threshold for "frequent" calls.
+static const LONG MAX_TIMERQUERY_PER_FRAME = 16384;
+
 // timer seeds
 static bool TimersSeeded = false;
 static CRITICAL_SECTION TimerSeedLock;
 static LARGE_INTEGER firstTimeQPC;
 static DWORD firstTimeTGT;
 static FILETIME firstTimeGSTAFT;
+static volatile LONG timerHammeringCounter = 0;
 
 static void seedAllTimers()
 {
@@ -85,6 +90,19 @@ static void seedAllTimers()
   }
 }
 
+static int getFrameTimingAndSeed()
+{
+  if(InterlockedIncrement(&timerHammeringCounter) == MAX_TIMERQUERY_PER_FRAME)
+  {
+    printLog("timing: application is hammering timer calls, advancing time. (frame = %d)\n",getFrameTiming());
+    skipFrame();
+  }
+
+  int frame = getFrameTiming();
+  seedAllTimers();
+  return frame;
+}
+
 // actual timing functions
 
 BOOL __stdcall Mine_QueryPerformanceFrequency(LARGE_INTEGER *lpFrequency)
@@ -99,9 +117,7 @@ BOOL __stdcall Mine_QueryPerformanceFrequency(LARGE_INTEGER *lpFrequency)
 
 BOOL __stdcall Mine_QueryPerformanceCounter(LARGE_INTEGER *lpCounter)
 {
-  int frame = getFrameTiming();
-  seedAllTimers();
-
+  int frame = getFrameTimingAndSeed();
   if(lpCounter)
     lpCounter->QuadPart = firstTimeQPC.QuadPart + ULongMulDiv(perfFrequency,frame*frameRateDenom,frameRateScaled);
 
@@ -111,17 +127,13 @@ BOOL __stdcall Mine_QueryPerformanceCounter(LARGE_INTEGER *lpCounter)
 DWORD __stdcall Mine_GetTickCount()
 {
   // before the first frame is finished, time still progresses normally
-  int frame = getFrameTiming();
-  seedAllTimers();
-
+  int frame = getFrameTimingAndSeed();
   return firstTimeTGT + UMulDiv(frame,1000*frameRateDenom,frameRateScaled);
 }
 
 DWORD __stdcall Mine_timeGetTime()
 {
-  int frame = getFrameTiming();
-  seedAllTimers();
-
+  int frame = getFrameTimingAndSeed();
   return firstTimeTGT + UMulDiv(frame,1000*frameRateDenom,frameRateScaled);
 }
 
@@ -132,8 +144,7 @@ MMRESULT __stdcall Mine_timeGetSystemTime(MMTIME *pmmt,UINT cbmmt)
 
 void __stdcall Mine_GetSystemTimeAsFileTime(FILETIME *time)
 {
-  int frame = getFrameTiming();
-  seedAllTimers();
+  int frame = getFrameTimingAndSeed();
 
   LONGLONG baseTime = *((LONGLONG *) &firstTimeGSTAFT);
   LONGLONG elapsedSince = ULongMulDiv(10000000,frame * frameRateDenom,frameRateScaled);
@@ -549,6 +560,7 @@ void nextFrameTiming()
   // (some old hjb intros stop when there's no new messages)
   PostMessage(GetForegroundWindow(),WM_NULL,0,0);
   currentFrame++;
+  timerHammeringCounter = 0;
 }
 
 int getFrameTiming()

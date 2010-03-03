@@ -34,6 +34,10 @@
 #pragma comment(lib,"winmm.lib")
 #pragma comment(lib,"psapi.lib")
 
+// if waveOutGetPosition is called frequently in a single frame, assume the app is waiting for the
+// current playback position to change and advance the time. this is the threshold for "frequent" calls.
+static const int MAX_GETPOSITION_PER_FRAME = 1024;
+
 // my own directsound fake!
 class MyDirectSound8;
 class MyDirectSoundBuffer8;
@@ -444,6 +448,14 @@ public:
   virtual HRESULT __stdcall GetCurrentPosition(LPDWORD pdwCurrentPlayCursor,LPDWORD pdwCurrentWriteCursor)
   {
     LockOwner lock(BufferLock);
+
+    if(++GetPosThisFrame >= MAX_GETPOSITION_PER_FRAME) // assume that the app is waiting for the playback position to change.
+    {
+      printLog("sound: app is hammering dsound GetCurrentPosition, advancing time (frame=%d)\n",getFrameTiming());
+      LeaveCriticalSection(&BufferLock);
+      skipFrame();
+      EnterCriticalSection(&BufferLock);
+    }
 
     // skip some milliseconds of silence at start
     if(SkipAllowed)
@@ -896,6 +908,7 @@ class WaveOutImpl
   int FirstWriteFrame;
   DWORD CurrentBufferPos;
   DWORD CurrentSamplePos;
+  int GetPositionCounter;
 
   void callbackMessage(UINT uMsg,DWORD dwParam1,DWORD dwParam2)
   {
@@ -980,6 +993,7 @@ public:
     InLoop = false;
     FirstFrame = -1;
     FirstWriteFrame = -1;
+    GetPositionCounter = 0;
 
     CurrentSamplePos = 0;
     memcpy(MagicCookie,"kkapture.waveout",16);
@@ -1101,9 +1115,15 @@ public:
 
   MMRESULT getPosition(MMTIME *mmt,UINT size)
   {
+    if(++GetPositionCounter >= MAX_GETPOSITION_PER_FRAME) // assume that the app is waiting for the waveout position to change.
+    {
+      printLog("sound: app is hammering waveOutGetPosition, advancing time (frame=%d)\n",getFrameTiming());
+      skipFrame();
+    }
+
     if(!mmt || size < sizeof(MMTIME))
     {
-      printLog("sound: invalid param to getPosition");
+      printLog("sound: invalid param to waveOutGetPosition");
       return MMSYSERR_INVALPARAM;
     }
 
@@ -1162,6 +1182,8 @@ public:
 
   void processFrame()
   {
+    GetPositionCounter = 0;
+
     // calculate number of samples to write
     int frame = getFrameTiming() - FirstWriteFrame;
     int align = Format->nBlockAlign;
