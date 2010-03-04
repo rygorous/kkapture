@@ -1576,10 +1576,14 @@ static void initSoundsysFMOD3()
 
 // ---- FMODEx 4.xx
 
+typedef int (__stdcall *PSYSTEM_INIT)(void *sys,int maxchan,int flags,void *extradriverdata);
+typedef int (__stdcall *PSYSTEM_SETOUTPUT)(void *sys,int output);
 typedef int (__stdcall *PSYSTEM_PLAYSOUND)(void *sys,int index,void *sound,bool paused,void **channel);
 typedef int (__stdcall *PCHANNEL_GETFREQUENCY)(void *chan,float *freq);
 typedef int (__stdcall *PCHANNEL_GETPOSITION)(void *chan,unsigned *position,int posType);
 
+static PSYSTEM_INIT Real_System_init;
+static PSYSTEM_SETOUTPUT Real_System_setOutput;
 static PSYSTEM_PLAYSOUND Real_System_playSound;
 static PCHANNEL_GETFREQUENCY Real_Channel_getFrequency;
 static PCHANNEL_GETPOSITION Real_Channel_getPosition;
@@ -1598,6 +1602,13 @@ struct FMODExSoundDesc
 
 static const int FMODExNumSounds = 16; // max # of active (playing) sounds supported
 static FMODExSoundDesc FMODExSounds[FMODExNumSounds];
+
+static int __stdcall Mine_System_init(void *sys,int maxchan,int flags,void *extradriverdata)
+{
+  // force output type to be dsound (mainly so i don't have to write a windows audio session implementation for vista)
+  Real_System_setOutput(sys,6); // 6=DirectSound
+  return Real_System_init(sys,maxchan,flags,extradriverdata);
+}
 
 static int __stdcall Mine_System_playSound(void *sys,int index,void *sound,bool paused,void **channel)
 {
@@ -1678,6 +1689,8 @@ static void initSoundsysFMODEx()
 
       printLog("sound/fmodex: fmodex.dll found, FMODEx support enabled.\n");
 
+      Real_System_init = (PSYSTEM_INIT) DetourFunction((PBYTE) GetProcAddress(fmodDll,"?init@System@FMOD@@QAG?AW4FMOD_RESULT@@HIPAX@Z"),(PBYTE) Mine_System_init);
+      Real_System_setOutput = (PSYSTEM_SETOUTPUT) GetProcAddress(fmodDll,"?setOutput@System@FMOD@@QAG?AW4FMOD_RESULT@@W4FMOD_OUTPUTTYPE@@@Z");
       Real_System_playSound = (PSYSTEM_PLAYSOUND) DetourFunction((PBYTE) GetProcAddress(fmodDll,"?playSound@System@FMOD@@QAG?AW4FMOD_RESULT@@W4FMOD_CHANNELINDEX@@PAVSound@2@_NPAPAVChannel@2@@Z"),(PBYTE) Mine_System_playSound);
       Real_Channel_getFrequency = (PCHANNEL_GETFREQUENCY) GetProcAddress(fmodDll,"?getFrequency@Channel@FMOD@@QAG?AW4FMOD_RESULT@@PAM@Z");
       Real_Channel_getPosition = (PCHANNEL_GETPOSITION) DetourFunction((PBYTE) GetProcAddress(fmodDll,"?getPosition@Channel@FMOD@@QAG?AW4FMOD_RESULT@@PAII@Z"),(PBYTE) Mine_Channel_getPosition);
