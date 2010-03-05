@@ -452,6 +452,7 @@ public:
     if(++GetPosThisFrame >= MAX_GETPOSITION_PER_FRAME) // assume that the app is waiting for the playback position to change.
     {
       printLog("sound: app is hammering dsound GetCurrentPosition, advancing time (frame=%d)\n",getFrameTiming());
+      GetPosThisFrame = 0;
       LeaveCriticalSection(&BufferLock);
       skipFrame();
       EnterCriticalSection(&BufferLock);
@@ -906,6 +907,7 @@ class WaveOutImpl
   bool Paused,InLoop;
   int FirstFrame;
   int FirstWriteFrame;
+  bool FrameInitialized;
   DWORD CurrentBufferPos;
   DWORD CurrentSamplePos;
   int GetPositionCounter;
@@ -991,8 +993,9 @@ public:
 
     Paused = false;
     InLoop = false;
-    FirstFrame = -1;
-    FirstWriteFrame = -1;
+    FirstFrame = 0;
+    FirstWriteFrame = 0;
+    FrameInitialized = false;
     GetPositionCounter = 0;
 
     CurrentSamplePos = 0;
@@ -1055,10 +1058,11 @@ public:
       return MMSYSERR_NOERROR;
 
     // enqueue
-    if(FirstFrame == -1) // officially start playback!
+    if(!FrameInitialized) // officially start playback!
     {
       FirstFrame = getFrameTiming();
       FirstWriteFrame = FirstFrame;
+      FrameInitialized = true;
       encoder->SetAudioFormat(Format);
       currentWaveOut = this;
     }
@@ -1102,8 +1106,9 @@ public:
 
     Paused = false;
     InLoop = false;
-    FirstFrame = -1;
-    FirstWriteFrame = -1;
+    FirstFrame = 0;
+    FirstWriteFrame = 0;
+    FrameInitialized = false;
 
     return MMSYSERR_NOERROR;
   }
@@ -1118,6 +1123,7 @@ public:
     if(++GetPositionCounter >= MAX_GETPOSITION_PER_FRAME) // assume that the app is waiting for the waveout position to change.
     {
       printLog("sound: app is hammering waveOutGetPosition, advancing time (frame=%d)\n",getFrameTiming());
+      GetPositionCounter = 0;
       skipFrame();
     }
 
@@ -1145,20 +1151,20 @@ public:
     }
 
     // current frame (offset corrected)
-    DWORD now;
     int relFrame = getFrameTiming() - FirstFrame;
+    DWORD now = UMulDiv(relFrame,Format->nSamplesPerSec * frameRateDenom,frameRateScaled);
 
     // calc time in requested format
     switch(mmt->wType)
     {
     case TIME_BYTES:
-    case TIME_SAMPLES:
     case TIME_MS:
-      now = UMulDiv(relFrame,Format->nSamplesPerSec * frameRateDenom,frameRateScaled);
-      if(mmt->wType == TIME_BYTES || mmt->wType == TIME_MS) // yes, TIME_MS seems to return *bytes*. WHATEVER.
-        mmt->u.cb = now * Format->nBlockAlign;
-      else if(mmt->wType == TIME_SAMPLES)
-        mmt->u.sample = now;
+      // yes, TIME_MS seems to return *bytes*. WHATEVER.
+      mmt->u.cb = now * Format->nBlockAlign;
+      break;
+
+    case TIME_SAMPLES:
+      mmt->u.sample = now;
       break;
     }
 
