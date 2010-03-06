@@ -91,7 +91,7 @@ LANGUAGE LANG_NEUTRAL, SUBLANG_SYS_DEFAULT
 IDD_MAINWIN DIALOGEX 0, 0, 258, 251
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
     WS_SYSMENU
-CAPTION ".kkapture 0.09"
+CAPTION ".kkapture 0.10"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     DEFPUSHBUTTON   "kkapture!",IDOK,149,230,50,14
@@ -126,7 +126,7 @@ BEGIN
                     BS_AUTOCHECKBOX | WS_TABSTOP,121,138,120,10
     CONTROL         "Power down on completion",IDC_POWERDOWN,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,14,150,105,10
-    CONTROL         "Separate encoder thread (BETA)",IDC_ENCODERTHREAD,"Button",BS_AUTOCHECKBOX |
+    CONTROL         "Separate encoder thread",IDC_ENCODERTHREAD,"Button",BS_AUTOCHECKBOX |
                     WS_TABSTOP,121,150,117,10
     GROUPBOX        "Auto-skip",IDC_STATIC,7,167,244,57
     CONTROL         "Enable automatic frameskip on timeout",IDC_AUTOSKIP,
