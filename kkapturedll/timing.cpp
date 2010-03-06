@@ -109,8 +109,6 @@ BOOL __stdcall Mine_QueryPerformanceFrequency(LARGE_INTEGER *lpFrequency)
 {
   if(lpFrequency)
     lpFrequency->QuadPart = perfFrequency;
-  //if(!IsBadWritePtr(lpFrequency,sizeof(LARGE_INTEGER)))
-  //  lpFrequency->QuadPart = perfFrequency;
 
   return TRUE;
 }
@@ -484,6 +482,7 @@ void doneTiming()
   DetourRemove((PBYTE) Real_Sleep, (PBYTE) Mine_Sleep);
   DetourRemove((PBYTE) Real_WaitForSingleObject, (PBYTE) Mine_WaitForSingleObject);
   DetourRemove((PBYTE) Real_WaitForMultipleObjects, (PBYTE) Mine_WaitForMultipleObjects);
+  DetourRemove((PBYTE) Real_MsgWaitForMultipleObjects, (PBYTE) Mine_MsgWaitForMultipleObjects);
 
   CloseHandle(nextFrameEvent);
   CloseHandle(resyncEvent);

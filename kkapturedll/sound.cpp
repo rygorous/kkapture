@@ -1393,14 +1393,41 @@ UINT __stdcall Mine_waveOutGetNumDevs()
 
 // ---- BASS
 
+struct BASS_INFO
+{
+  DWORD flags;      // device capabilities (DSCAPS_xxx flags)
+  DWORD hwsize;     // size of total device hardware memory
+  DWORD hwfree;     // size of free device hardware memory
+  DWORD freesam;    // number of free sample slots in the hardware
+  DWORD free3d;     // number of free 3D sample slots in the hardware
+  DWORD minrate;    // min sample rate supported by the hardware
+  DWORD maxrate;    // max sample rate supported by the hardware
+  BOOL eax;         // device supports EAX? (always FALSE if BASS_DEVICE_3D was not used)
+  DWORD minbuf;     // recommended minimum buffer length in ms (requires BASS_DEVICE_LATENCY)
+  DWORD dsver;      // DirectSound version
+  DWORD latency;    // delay (in ms) before start of playback (requires BASS_DEVICE_LATENCY)
+  DWORD initflags;  // BASS_Init "flags" parameter
+  DWORD speakers;   // number of speakers available
+  DWORD freq;       // current output rate (Vista/OSX only)
+};
+
 typedef BOOL (__stdcall *PBASS_INIT)(int device,DWORD freq,DWORD flags,HWND win,GUID *clsid);
+typedef BOOL (__stdcall *PBASS_GETINFO)(BASS_INFO *info);
 
 static PBASS_INIT Real_BASS_Init = 0;
+static PBASS_GETINFO Real_BASS_GetInfo = 0;
 
 static BOOL __stdcall Mine_BASS_Init(int device,DWORD freq,DWORD flags,HWND win,GUID *clsid)
 {
   // for BASS, all we need to do is make sure that the BASS_DEVICE_LATENCY flag is cleared.
   return Real_BASS_Init(device,freq,flags & ~256,win,clsid);
+}
+
+static BOOL __stdcall Mine_BASS_GetInfo(BASS_INFO *info)
+{
+  BOOL res = Real_BASS_GetInfo(info);
+  if(info) info->latency = 0;
+  return res;
 }
 
 static void initSoundsysBASS()
@@ -1409,11 +1436,13 @@ static void initSoundsysBASS()
   if(bassDll)
   {
     PBASS_INIT init = (PBASS_INIT) GetProcAddress(bassDll,"BASS_Init");
+    PBASS_GETINFO getinfo = (PBASS_GETINFO) GetProcAddress(bassDll,"BASS_GetInfo");
 
-    if(init)
+    if(init && getinfo)
     {
       printLog("sound/bass: bass.dll found, BASS support enabled.\n");
       Real_BASS_Init = (PBASS_INIT) DetourFunction((PBYTE) init,(PBYTE) Mine_BASS_Init);
+      Real_BASS_GetInfo = (PBASS_GETINFO) DetourFunction((PBYTE) getinfo,(PBYTE) Mine_BASS_GetInfo);
     }
   }
 }
