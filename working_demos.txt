@@ -5,22 +5,38 @@ checked with new timing (alphabetical order):
 - a deepness in the sky/mfx (synchronization slightly off)
 - above/lkcc
 - abstinens/keyboarders (use auto skip)
+- actuator/conspiracy
+- atmta/quite
 - aether/mfx
 - animal attraction/asd
 - ante dominum/traction
+- arise/stravaganza
 - assembly 04 invitation/moppi productions
+- assembly 09 invitation/andromeda
+- ballad of a cluster bomb - director's cut/kooma
 - bleam/lionhead
+- blunderbuss/fairlight
 - candystall/pittsburgh stallers vs. loonies
+- cat's cradle/matt current
+- chameleon/asd
 - che guevara/fairlight
 - coma (on the dancefloor)/cocoon
 - contour/tbl (sounds sucks)
 - dead cells/haujobb
 - dead flowers/haujobb
 - dead ringer/fairlight
+- death and taxes/fairlight
 - death in vegas/calodox (sound issues on some machines)
+- defrost/unik
+- diatom/andr00
+- digere animo/demarche
+- dollop/sqny
 - don't stop/portal process
 - dreamcreditor/xzm
 - elektronics (win32)/doomsday
+- elevated/rgba+tbc
+- ephemera/approximate
+- extatique/adinpsz
 - f07/conspiracy
 - fall equals winter/replay
 - fairytale/traction+brainstorm
@@ -28,21 +44,29 @@ checked with new timing (alphabetical order):
 - first offence/parapete
 - forms/replay
 - fr-08: the product/farbrausch (use "skip silence at start")
+- fr-019: poem to a horse/farbrausch
 - fr-025: the popular demo/farbrausch
+- fr-033: like there's no tomorrow/farbrausch
 - fr-038: theta/farbrausch
 - fr-041: debris/farbrausch
+- fr-062: the cube/farbrausch
+- fr-065: euphotic/farbrausch
+- frameranger/fairlight
 - frameskool/equinox (use auto skip)
 - fresnel 2/kolor
 - funkkin/haujobb
 - galiwm/ümlaüt design
 - goatard/noice
 - heaven 7/exceed
+- hotel bar heroes/portal process
 - incyber/satori
 - insert coins/traction
+- koneko/bitflavour
 - libgov/kolor
 - liquid lust/fairlight
 - liquid wen/haujobb
 - lost vegas/3state
+- lunaquatic/bluflame
 - masagin/farbrausch
 - mega hitler expansion pack/boozoholics
 - melrose space/threestate
@@ -56,30 +80,44 @@ checked with new timing (alphabetical order):
 - noumenon/andromeda (use auto skip)
 - blockbuster/outracks
 - panjabmoore meets 007 again/calodox
+- passing/still	
 - perfect love/lkcc+bauknecht
+- pimp my spectrum/ate bit
 - planet loop/madwizards+nahkolor (use "enable automatic frameskip on timeout")
 - planet risk/asd
+- please the cookie thing/aardbei
 - pluxity/unik (use fullscreen version, press CTRL-BREAK after the window has closed)
 - protozoa/kewlers
 - r08028/threepixels+stravaganza
 - raw confessions/cocoon
 - resonance/portal process
+- rudebox/alcatraz
+- rupture/asd
 - sandbox punks/cocoon
 - sonnet/threestate (use auto skip)
+- spectrum/ümlaüt design
 - square/pulse (win32 version)
 - structure/ümlaüt design
 - structure 2: sequence/ümlaüt design
 - sts-03: aeon flux/synesthetics
+- sts-04: instant zen/synesthetics
+- submerged/outracks
+- sult/loonies
 - summer encounter/outracks
+- syntax party 2009 invite/disaster area
 - texas/keyboarders
+- the golden path/united force+digital dynamite
+- the official end of a civilization/nuance
 - tokyo/xplsv+roterfleck
 - track one/fairlight (no sound as of v0.08; no clue what went wrong, will look into this sometime)
+- transform/ate bit
 - trocken/bauknecht
 - variform/kewlers
 - voidspace/woorlic
 - weird in a strange way/loonies
 - wonder/sunflower
 - xmix 2004/mfx+kewlers
+- yes we can/quite
 - zilog/sunflower (win32 version)
 - zyprexa/bauknecht
 
@@ -88,13 +126,6 @@ not working with new timing (alphabetical order):
 
 not yet checked with new timing code, working with older timing (alphabetical order):
 - antimoney/3state
-- arise/stravaganza
-- death and taxes/fairlight
-- defrost/unik
-- fr-019: poem to a horse/farbrausch
-- please the cookie thing/aardbei
-- spectrum/ümlaüt design
-- sts-04: instant zen/synesthetics
 
 checked and working with problems:
 
