@@ -136,155 +136,21 @@ static IDirectDrawSurface* GetBlitSurface()
 // this is not meant to be as fast as possible; instead I try to keep it
 // generic and short because blitting itself is not going to be a performance
 // bottleneck anyway.
-class GenericBlitter
+class DDrawBlitter : public GenericBlitter
 {
-  BYTE RTab[256],GTab[256],BTab[256];
-  int RShift,GShift,BShift;
-  int RMask,GMask,BMask;
-  DDPIXELFORMAT Format;
-  int BytesPerPixel;
-  bool Paletted;
-
-  // the innerloops for different bytes per source pixel
-  void Blit1ByteSrc(unsigned char *src,unsigned char *dst,int count)
-  {
-    do
-    {
-      unsigned source = *src++;
-      *dst++ = BTab[(source >> BShift) & BMask];
-      *dst++ = GTab[(source >> GShift) & GMask];
-      *dst++ = RTab[(source >> RShift) & RMask];
-    }
-    while(--count);
-  }
-
-  void Blit2ByteSrc(unsigned char *src,unsigned char *dst,int count)
-  {
-    unsigned short *srcp = (unsigned short *) src;
-
-    do
-    {
-      unsigned source = *srcp++;
-      *dst++ = BTab[(source >> BShift) & BMask];
-      *dst++ = GTab[(source >> GShift) & GMask];
-      *dst++ = RTab[(source >> RShift) & RMask];
-    }
-    while(--count);
-  }
-
-  void Blit3ByteSrc(unsigned char *src,unsigned char *dst,int count)
-  {
-    do
-    {
-      unsigned source = src[0] | (src[1] << 8) | (src[2] << 16);
-      src += 3;
-      *dst++ = BTab[(source >> BShift) & BMask];
-      *dst++ = GTab[(source >> GShift) & GMask];
-      *dst++ = RTab[(source >> RShift) & RMask];
-    }
-    while(--count);
-  }
-
-  void Blit4ByteSrc(unsigned char *src,unsigned char *dst,int count)
-  {
-    unsigned long *srcp = (unsigned long *) src;
-
-    do
-    {
-      unsigned source = *srcp++;
-      *dst++ = BTab[(source >> BShift) & BMask];
-      *dst++ = GTab[(source >> GShift) & GMask];
-      *dst++ = RTab[(source >> RShift) & RMask];
-    }
-    while(--count);
-  }
-
-  void Blit32to24(unsigned char *src,unsigned char *dst,int count)
-  {
-    // mmx would be faster, but what the heck...
-    do
-    {
-      *dst++ = *src++;
-      *dst++ = *src++;
-      *dst++ = *src++;
-      src++;
-    }
-    while(--count);
-  }
-
-  void BlitOneLine(unsigned char *src,unsigned char *dst,int count)
-  {
-    if(BytesPerPixel == 3 && RShift == 16 && RMask == 255 &&
-      GShift == 8 && GMask == 255 && BShift == 0 && BMask == 255)
-    {
-      memcpy(dst,src,count*3);
-    }
-    else if(BytesPerPixel == 4 && RShift == 16 && RMask == 255 &&
-      GShift == 8 && GMask == 255 && BShift == 0 && BMask == 255)
-    {
-      Blit32to24(src,dst,count);
-    }
-    else
-    {
-      switch(BytesPerPixel)
-      {
-      case 1: Blit1ByteSrc(src,dst,count); break;
-      case 2: Blit2ByteSrc(src,dst,count); break;
-      case 3: Blit3ByteSrc(src,dst,count); break;
-      case 4: Blit4ByteSrc(src,dst,count); break;
-      }
-    }
-  }
-
-  static void CalcLookupFromMask(BYTE *lookup,int &outShift,int &outMask,DWORD inMask)
-  {
-    outShift = 0;
-    while(outShift<32 && !(inMask & 1))
-    {
-      outShift++;
-      inMask >>= 1;
-    }
-
-    outMask = min(inMask,255);
-    for(int i=0;i<=outMask;i++)
-      lookup[i] = (i * 255) / outMask;
-  }
-
   void SetFormat(LPDDPIXELFORMAT fmt)
   {
-    Format = *fmt;
-
-    if(Format.dwFlags & DDPF_PALETTEINDEXED8)
-    {
-      printLog("video: paletted pixel format\n");
-      BytesPerPixel = 1;
-      Paletted = true;
-
-      RShift = GShift = BShift = 0;
-      RMask = GMask = BMask = 255;
-    }
-    else if(Format.dwFlags & DDPF_RGB)
-    {
-      BytesPerPixel = (Format.dwRGBBitCount + 7) / 8;
-      Paletted = false;
-
-      CalcLookupFromMask(RTab,RShift,RMask,Format.dwRBitMask);
-      CalcLookupFromMask(GTab,GShift,GMask,Format.dwGBitMask);
-      CalcLookupFromMask(BTab,BShift,BMask,Format.dwBBitMask);
-    }
+    if(fmt->dwFlags & DDPF_PALETTEINDEXED8)
+      SetPalettedFormat(8);
+    else if(fmt->dwFlags & DDPF_RGB)
+      SetRGBFormat(fmt->dwRGBBitCount,fmt->dwRBitMask,fmt->dwGBitMask,fmt->dwBBitMask);
     else
-    {
-      BytesPerPixel = 1;
-      Paletted = false;
-      
-      RTab[0] = GTab[0] = BTab[0] = 0;
-      RMask = GMask = BMask = 0;
-    }
+      SetInvalidFormat();
   }
   
   void UpdatePalette()
   {
-    if(Paletted && PrimarySurface)
+    if(IsPaletted() && PrimarySurface)
     {
       IDirectDrawPalette *pal = 0;
       ((IDirectDrawSurface *) PrimarySurface)->GetPalette(&pal);
@@ -293,13 +159,7 @@ class GenericBlitter
       {
         PALETTEENTRY entries[256];
         pal->GetEntries(0,0,256,entries);
-        for(int i=0;i<256;i++)
-        {
-          RTab[i] = entries[i].peRed;
-          GTab[i] = entries[i].peGreen;
-          BTab[i] = entries[i].peBlue;
-        }
-
+        SetPalette(entries,256);
         pal->Release();
       }
       else
@@ -308,11 +168,6 @@ class GenericBlitter
   }
 
 public:
-  GenericBlitter()
-  {
-    memset(&Format,0,sizeof(Format));
-  }
-
   bool BlitSurfaceToCapture(IDirectDrawSurface *surf,int version)
   {
     DDPIXELFORMAT fmt;
@@ -329,10 +184,8 @@ public:
       return false;
     }
 
-    if(memcmp(&fmt,&Format,sizeof(DDPIXELFORMAT))) // other format than cached one?
-      SetFormat(&fmt);
-
-    if(Paletted)
+    SetFormat(&fmt);
+    if(IsPaletted())
       UpdatePalette();
 
     // blit backbuffer to our readback surface
@@ -400,7 +253,7 @@ public:
   }
 };
 
-static GenericBlitter Blitter;
+static DDrawBlitter Blitter;
 
 // ---- stuff common to all versions
 

@@ -24,9 +24,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
-#include <assert.h>
 #include <tchar.h>
 #include "../kkapturedll/main.h"
+#include "../kkapturedll/intercept.h"
 #include "resource.h"
 
 #pragma comment(lib,"vfw32.lib")
@@ -477,135 +477,6 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
 
 // ----
 
-static void *GetEntryPoint(HANDLE hProcess,void *baseAddr)
-{
-  IMAGE_DOS_HEADER doshdr;
-  IMAGE_NT_HEADERS32 nthdr;
-  DWORD read;
-  BYTE *base = (BYTE *) baseAddr;
-
-  if(!ReadProcessMemory(hProcess,base,&doshdr,sizeof(doshdr),&read) || read != sizeof(doshdr)
-    || doshdr.e_magic != IMAGE_DOS_SIGNATURE)
-    return 0;
-
-  if(!ReadProcessMemory(hProcess,base + doshdr.e_lfanew,&nthdr,sizeof(nthdr),&read) || read != sizeof(nthdr))
-    return 0;
-
-  if(nthdr.Signature != IMAGE_NT_SIGNATURE
-    || nthdr.FileHeader.Machine != IMAGE_FILE_MACHINE_I386
-    || nthdr.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR32_MAGIC
-    || !nthdr.OptionalHeader.AddressOfEntryPoint)
-    return 0;
-
-  return (void*) (base + nthdr.OptionalHeader.AddressOfEntryPoint);
-}
-
-static void *DetermineEntryPoint(HANDLE hProcess)
-{
-  // go through the virtual address range of the target process and try to find the executable
-  // in there.
-
-  MEMORY_BASIC_INFORMATION mbi;
-  BYTE *current = (BYTE *) 0x10000; // first 64k are always reserved
-
-  while(VirtualQueryEx(hProcess,current,&mbi,sizeof(mbi)) > 0)
-  {
-    // we only care about commited non-guard pages
-    if(mbi.State == MEM_COMMIT && !(mbi.Protect & PAGE_GUARD))
-    {
-      // was an executable mapped starting here?
-      void *entry = GetEntryPoint(hProcess,mbi.BaseAddress);
-      if(entry)
-        return entry;
-    }
-
-    current += mbi.RegionSize;
-  }
-
-  return 0; // nothing found
-}
-
-static bool PrepareInstrumentation(HANDLE hProcess,BYTE *workArea,TCHAR *dllName,void *entryPointPtr)
-{
-  BYTE origCode[24];
-  struct bufferType
-  {
-    BYTE code[2048]; // code must be first field
-    BYTE data[2048];
-  } buffer;
-  BYTE jumpCode[5];
-
-  DWORD offsWorkArea = (DWORD) workArea;
-  BYTE *code = buffer.code;
-  BYTE *loadLibrary = (BYTE *) GetProcAddress(GetModuleHandle(_T("kernel32.dll")),"LoadLibraryA");
-  BYTE *entryPoint = (BYTE *) entryPointPtr;
-
-  // Read original startup code
-  DWORD amount = 0;
-  memset(origCode,0xcc,sizeof(origCode));
-  if(!ReadProcessMemory(hProcess,entryPoint,origCode,sizeof(origCode),&amount)
-    && (amount == 0 || GetLastError() != 0x12b)) // 0x12b = request only partially completed
-    return false;
-
-  // Generate Initialization hook
-  code = DetourGenPushad(code);
-  _tcscpy((TCHAR *) buffer.data,dllName);
-  code = DetourGenPush(code,offsWorkArea + offsetof(bufferType,data));
-  code = DetourGenCall(code,loadLibrary,workArea + (code - buffer.code));
-  code = DetourGenPopad(code);
-
-  // Copy startup code
-  BYTE *sourcePtr = origCode;
-  DWORD relPos;
-  while((relPos = sourcePtr - origCode) < sizeof(jumpCode))
-  {
-    if(sourcePtr[0] == 0xe8 || sourcePtr[0] == 0xe9) // Yes, we can jump/call there too
-    {
-      if(sourcePtr[0] == 0xe8)
-      {
-        // turn a call into a push/jump sequence; this is necessary in case someone
-        // decides to do computations based on the return address in the stack frame
-        code = DetourGenPush(code,(UINT32) (entryPoint + relPos + 5));
-        *code++ = 0xe9; // rest of flow continues with a jmp near
-        sourcePtr++;
-      }
-      else // just copy the opcode
-        *code++ = *sourcePtr++;
-
-      // Copy target address, compensating for offset
-      *((DWORD *) code) = *((DWORD *) sourcePtr)
-        + entryPoint + relPos + 1             // add back original position
-        - (workArea + (code - buffer.code));  // subtract new position
-
-      code += 4;
-      sourcePtr += 4;
-    }
-    else // not a jump/call, copy instruction
-    {
-      BYTE *oldPtr = sourcePtr;
-      sourcePtr = DetourCopyInstruction(code,sourcePtr,0);
-      code += sourcePtr - oldPtr;
-    }
-  }
-
-  // Jump to rest
-  code = DetourGenJmp(code,entryPoint + (sourcePtr - origCode),workArea + (code - buffer.code));
-
-  // And prepare jump to init hook from original entry point
-  DetourGenJmp(jumpCode,workArea,entryPoint);
-
-  // Finally, write everything into process memory
-  DWORD oldProtect;
-
-  return VirtualProtectEx(hProcess,workArea,sizeof(buffer),PAGE_EXECUTE_READWRITE,&oldProtect)
-    && WriteProcessMemory(hProcess,workArea,&buffer,sizeof(buffer),0)
-    && VirtualProtectEx(hProcess,entryPoint,sizeof(jumpCode),PAGE_EXECUTE_READWRITE,&oldProtect)
-    && WriteProcessMemory(hProcess,entryPoint,jumpCode,sizeof(jumpCode),0)
-    && FlushInstructionCache(hProcess,entryPoint,sizeof(jumpCode)); 
-}
-
-// ----
-
 int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,int nCmdShow)
 {
   if(DialogBox(hInstance,MAKEINTRESOURCE(IDD_MAINWIN),0,MainDialogProc))
@@ -650,58 +521,30 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
     _tmakepath(exepath,drive,dir,_T(""),_T(""));
     SetCurrentDirectory(exepath);
 
-    if(!Params.NewIntercept)
+    int err = CreateInstrumentedProcess(Params.NewIntercept,ExeName,commandLine,0,0,TRUE,
+      CREATE_DEFAULT_ERROR_MODE,0,0,&si,&pi);
+    switch(err)
     {
-      if(DetourCreateProcessWithDll(ExeName,commandLine,0,0,TRUE,
-        CREATE_DEFAULT_ERROR_MODE,0,0,&si,&pi,dllpath,0))
-      {
-        // wait for target process to finish
-        WaitForSingleObject(pi.hProcess,INFINITE);
-        CloseHandle(pi.hProcess);
-      }
-      else
-        ErrorMsg(_T("Couldn't execute target process"));
-    }
-    else
-    {
-      if(CreateProcess(ExeName,commandLine,0,0,TRUE,
-        CREATE_DEFAULT_ERROR_MODE|CREATE_SUSPENDED,0,0,&si,&pi))
-      {
-        if(void *entryPoint = DetermineEntryPoint(pi.hProcess))
-        {
-          // get some memory in the target processes' space for us to work with
-          void *workMem = VirtualAllocEx(pi.hProcess,0,4096,MEM_COMMIT,
-            PAGE_EXECUTE_READWRITE);
+    case ERR_OK:
+      // wait for target process to finish
+      WaitForSingleObject(pi.hProcess,INFINITE);
+      break;
 
-          // do all the mean initialization faking code here
-          if(PrepareInstrumentation(pi.hProcess,(BYTE *) workMem,dllpath,entryPoint))
-          {
-            // we're done with our evil machinations, so let the process run
-            ResumeThread(pi.hThread);
+    case ERR_INSTRUMENTATION_FAILED:
+      ErrorMsg(_T("Startup instrumentation failed"));
+      break;
 
-            // wait for target process to finish
-            WaitForSingleObject(pi.hProcess,INFINITE);
-          }
-          else
-          {
-            ErrorMsg(_T("Startup instrumentation failed"));
-            TerminateProcess(pi.hProcess,0);
-          }
-        }
-        else
-        {
-          ErrorMsg(_T("Couldn't determine entry point!"));
-          ResumeThread(pi.hThread);
-          TerminateProcess(pi.hProcess,0);
-        }
+    case ERR_COULDNT_FIND_ENTRY_POINT:
+      ErrorMsg(_T("Couldn't determine entry point!"));
+      break;
 
-        CloseHandle(pi.hProcess);
-      }
-      else
-        ErrorMsg(_T("Couldn't execute target process"));
+    case ERR_COULDNT_EXECUTE:
+      ErrorMsg(_T("Couldn't execute target process"));
+      break;
     }
 
     // cleanup
+    CloseHandle(pi.hProcess);
     CloseHandle(hParamMapping);
   }
 

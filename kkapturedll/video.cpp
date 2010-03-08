@@ -138,7 +138,7 @@ void videoNeedEncoder()
 int captureWidth = 0, captureHeight = 0;
 unsigned char *captureData = 0;
 
-void destroyCaptureBuffer()
+static void destroyCaptureBuffer()
 {
   VideoCaptureDataLock lock;
 
@@ -152,7 +152,7 @@ void destroyCaptureBuffer()
   }
 }
 
-void createCaptureBuffer(int width,int height)
+static void createCaptureBuffer(int width,int height)
 {
   destroyCaptureBuffer();
 
@@ -310,16 +310,6 @@ void blitAndFlipBGRAToCaptureData(unsigned char *source,unsigned pitch)
     unsigned char *dst = captureData + y * captureWidth * 3;
 
     blit32to24loop(dst,src,captureWidth);
-    /*// a better copy loop maybe would improve performance (then again, maybe
-    // it wouldn't)
-    // update: it does. slightly.
-    for(int x=0;x<captureWidth;x++)
-    {
-      *dst++ = *src++;
-      *dst++ = *src++;
-      *dst++ = *src++;
-      src++;
-    }*/
   }
 }
 
@@ -341,6 +331,168 @@ void blitAndFlipRGBAToCaptureData(unsigned char *source,unsigned pitch)
   }
 }
 
+// generic blitter class
+
+static void CalcLookupFromMask(unsigned char *lookup,int &outShift,int &outMask,unsigned inMask)
+{
+  outShift = 0;
+  while(outShift<32 && !(inMask & 1))
+  {
+    outShift++;
+    inMask >>= 1;
+  }
+
+  outMask = min(inMask,255);
+  for(int i=0;i<=outMask;i++)
+    lookup[i] = (i * 255) / outMask;
+}
+
+
+void GenericBlitter::Blit1ByteSrc(unsigned char *src,unsigned char *dst,int count)
+{
+  do
+  {
+    unsigned source = *src++;
+    *dst++ = BTab[(source >> BShift) & BMask];
+    *dst++ = GTab[(source >> GShift) & GMask];
+    *dst++ = RTab[(source >> RShift) & RMask];
+  }
+  while(--count);
+}
+
+void GenericBlitter::Blit2ByteSrc(unsigned char *src,unsigned char *dst,int count)
+{
+  unsigned short *srcp = (unsigned short *) src;
+
+  do
+  {
+    unsigned source = *srcp++;
+    *dst++ = BTab[(source >> BShift) & BMask];
+    *dst++ = GTab[(source >> GShift) & GMask];
+    *dst++ = RTab[(source >> RShift) & RMask];
+  }
+  while(--count);
+}
+
+void GenericBlitter::Blit3ByteSrc(unsigned char *src,unsigned char *dst,int count)
+{
+  do
+  {
+    unsigned source = src[0] | (src[1] << 8) | (src[2] << 16);
+    src += 3;
+    *dst++ = BTab[(source >> BShift) & BMask];
+    *dst++ = GTab[(source >> GShift) & GMask];
+    *dst++ = RTab[(source >> RShift) & RMask];
+  }
+  while(--count);
+}
+
+void GenericBlitter::Blit4ByteSrc(unsigned char *src,unsigned char *dst,int count)
+{
+  unsigned long *srcp = (unsigned long *) src;
+
+  do
+  {
+    unsigned source = *srcp++;
+    *dst++ = BTab[(source >> BShift) & BMask];
+    *dst++ = GTab[(source >> GShift) & GMask];
+    *dst++ = RTab[(source >> RShift) & RMask];
+  }
+  while(--count);
+}
+
+GenericBlitter::GenericBlitter()
+{
+  SetInvalidFormat();
+}
+
+void GenericBlitter::SetInvalidFormat()
+{
+  BytesPerPixel = 0;
+  Paletted = false;
+  
+  RTab[0] = GTab[0] = BTab[0] = 0;
+  RMask = GMask = BMask = 0;
+}
+
+void GenericBlitter::SetRGBFormat(int bits,unsigned int redMask,unsigned int greenMask,unsigned int blueMask)
+{
+  if(bits < 8)
+    SetInvalidFormat();
+  else
+  {
+    BytesPerPixel = (bits + 7) / 8;
+    Paletted = false;
+
+    CalcLookupFromMask(RTab,RShift,RMask,redMask);
+    CalcLookupFromMask(GTab,GShift,GMask,greenMask);
+    CalcLookupFromMask(BTab,BShift,BMask,blueMask);
+  }
+}
+
+void GenericBlitter::SetPalettedFormat(int bits)
+{
+  if(bits != 8)
+    SetInvalidFormat();
+  else
+  {
+    BytesPerPixel = 1;
+    Paletted = true;
+
+    RShift = GShift = BShift = 0;
+    RMask = GMask = BMask = 255;
+  }
+}
+
+void GenericBlitter::SetPalette(const struct tagPALETTEENTRY *palette,int nEntries)
+{
+  if(Paletted)
+  {
+    nEntries = min(nEntries,256);
+
+    for(int i=0;i<nEntries;i++)
+    {
+      RTab[i] = palette[i].peRed;
+      GTab[i] = palette[i].peGreen;
+      BTab[i] = palette[i].peBlue;
+    }
+
+    for(int i=nEntries;i<256;i++)
+    {
+      RTab[i] = 0;
+      GTab[i] = 0;
+      BTab[i] = 0;
+    }
+  }
+}
+
+bool GenericBlitter::IsPaletted() const
+{
+  return Paletted;
+}
+
+void GenericBlitter::BlitOneLine(unsigned char *src,unsigned char *dst,int count)
+{
+  if(BytesPerPixel == 3 && RShift == 16 && RMask == 255 &&
+    GShift == 8 && GMask == 255 && BShift == 0 && BMask == 255)
+  {
+    memcpy(dst,src,count*3);
+  }
+  else if(BytesPerPixel == 4 && RShift == 16 && RMask == 255 &&
+    GShift == 8 && GMask == 255 && BShift == 0 && BMask == 255)
+    blit32to24loop(dst,src,count);
+  else
+  {
+    switch(BytesPerPixel)
+    {
+    case 1: Blit1ByteSrc(src,dst,count); break;
+    case 2: Blit2ByteSrc(src,dst,count); break;
+    case 3: Blit3ByteSrc(src,dst,count); break;
+    case 4: Blit4ByteSrc(src,dst,count); break;
+    }
+  }
+}
+
 // public interface
 void initVideo()
 {
@@ -355,6 +507,7 @@ void initVideo()
 	initVideo_Direct3D9();
   initVideo_Direct3D10();
 	initVideo_DirectDraw();
+  initVideo_GDI();
 }
 
 void doneVideo()

@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="9,00"
+	Version="8,00"
 	Name="kkapturedll"
 	ProjectGUID="{8212119F-DBE1-4DA5-80A9-67FDE9A4CBD3}"
 	Keyword="Win32Proj"
-	TargetFrameworkVersion="131072"
 	>
 	<Platforms>
 		<Platform
@@ -73,8 +72,6 @@
 				SubSystem="2"
 				OptimizeReferences="1"
 				EnableCOMDATFolding="1"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 				ImportLibrary="$(OutDir)/kkapturedll.lib"
 				TargetMachine="1"
 			/>
@@ -95,6 +92,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -155,8 +155,6 @@
 				SubSystem="2"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
-				RandomizedBaseAddress="1"
-				DataExecutionPrevention="0"
 				ImportLibrary="$(OutDir)/kkapturedll.lib"
 				TargetMachine="1"
 			/>
@@ -177,6 +175,9 @@
 			/>
 			<Tool
 				Name="VCAppVerifierTool"
+			/>
+			<Tool
+				Name="VCWebDeploymentTool"
 			/>
 			<Tool
 				Name="VCPostBuildEventTool"
@@ -221,6 +222,14 @@
 			</File>
 			<File
 				RelativePath=".\bmp_videoencoder.h"
+				>
+			</File>
+			<File
+				RelativePath=".\intercept.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\intercept.h"
 				>
 			</File>
 			<File
@@ -318,6 +327,10 @@
 						AssemblerOutput="4"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\video_gdi.cpp"
+				>
 			</File>
 			<File
 				RelativePath="video_opengl.cpp"

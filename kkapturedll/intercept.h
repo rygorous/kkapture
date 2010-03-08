@@ -20,63 +20,27 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __MAIN_H__
-#define __MAIN_H__
+#ifndef __INTERCEPT_H__
+#define __INTERCEPT_H__
 
-class VideoEncoder;
+#ifdef _USRDLL
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT __declspec(dllimport)
+#endif
 
-// configuration options
-
-// writing AVIs using DShow (please read top of avi_videoencoder_dshow.cpp)
-#define USE_DSHOW_AVI_WRITER      1
-
-// global variables
-extern VideoEncoder *encoder;
-extern int frameRateScaled,frameRateDenom;
-extern bool exitNextFrame;
-extern void *hModule;
-
-// parameter block submitted by main app
-static const int PARAMVERSION = 3;
-
-enum EncoderType
+enum ErrorCodes
 {
-  DummyEncoder,
-  BMPEncoder,
-  AVIEncoderVFW,
-  AVIEncoderDShow,
+  ERR_OK = 0,
+  ERR_INSTRUMENTATION_FAILED,
+  ERR_COULDNT_FIND_ENTRY_POINT,
+  ERR_COULDNT_EXECUTE
 };
 
-struct ParameterBlock
-{
-  unsigned VersionTag;
-  TCHAR FileName[_MAX_PATH];
-  int FrameRateNum,FrameRateDenom;
-  EncoderType Encoder;
-  DWORD VideoCodec;
-  DWORD VideoQuality;
+extern "C" DLLEXPORT int CreateInstrumentedProcess(BOOL newIntercept,LPCTSTR appName,LPTSTR cmdLine,
+  LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,
+  LPVOID env,LPCTSTR currentDir,LPSTARTUPINFO startupInfo,LPPROCESS_INFORMATION pi);
 
-  BOOL CaptureVideo;
-  BOOL CaptureAudio;
-
-  DWORD SoundMaxSkip; // in milliseconds
-  BOOL MakeSleepsLastOneFrame;
-  DWORD SleepTimeout;
-  BOOL NewIntercept;
-  BOOL SoundsysInterception;
-
-  BOOL EnableAutoSkip;
-  DWORD FirstFrameTimeout;
-  DWORD FrameTimeout;
-
-  BOOL IsDebugged;
-  BOOL PowerDownAfterwards;
-  BOOL UseEncoderThread;
-
-  DWORD CodecDataSize;
-  UCHAR CodecSpecificData[16384];
-};
-
-extern ParameterBlock params;
+void initProcessIntercept();
 
 #endif

@@ -1,8 +1,11 @@
-Microsoft Visual Studio Solution File, Format Version 10.00
-# Visual Studio 2008
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kkapturedll", "kkapturedll\kkapturedll.vcproj", "{8212119F-DBE1-4DA5-80A9-67FDE9A4CBD3}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kkapture", "kkapture\kkapture.vcproj", "{DBA35513-DE77-4FE9-8B71-C483946E76FF}"
+	ProjectSection(ProjectDependencies) = postProject
+		{8212119F-DBE1-4DA5-80A9-67FDE9A4CBD3} = {8212119F-DBE1-4DA5-80A9-67FDE9A4CBD3}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
