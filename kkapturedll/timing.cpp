@@ -1,5 +1,5 @@
 /* kkapture: intrusive demo video capturing.
- * Copyright (c) 2005-2009 Fabian "ryg/farbrausch" Giesen.
+ * Copyright (c) 2005-2010 Fabian "ryg/farbrausch" Giesen.
  *
  * This program is free software; you can redistribute and/or modify it under
  * the terms of the Artistic License, Version 2.0beta5, or (at your opinion)
@@ -409,7 +409,7 @@ static unsigned int __stdcall stuckThreadProc(void *arg)
   return 0;
 }
 
-void initTiming()
+void initTiming(bool interceptAnything)
 {
   timeBeginPeriod(1);
 
@@ -427,19 +427,22 @@ void initTiming()
   QueryPerformanceFrequency(&freq);
   perfFrequency = freq.QuadPart;
 
-  DetourFunctionWithTrampoline((PBYTE) Real_QueryPerformanceFrequency, (PBYTE) Mine_QueryPerformanceFrequency);
-  DetourFunctionWithTrampoline((PBYTE) Real_QueryPerformanceCounter, (PBYTE) Mine_QueryPerformanceCounter);
-  DetourFunctionWithTrampoline((PBYTE) Real_GetTickCount, (PBYTE) Mine_GetTickCount);
-  DetourFunctionWithTrampoline((PBYTE) Real_timeGetTime, (PBYTE) Mine_timeGetTime);
-  DetourFunctionWithTrampoline((PBYTE) Real_Sleep, (PBYTE) Mine_Sleep);
-  DetourFunctionWithTrampoline((PBYTE) Real_WaitForSingleObject, (PBYTE) Mine_WaitForSingleObject);
-  DetourFunctionWithTrampoline((PBYTE) Real_WaitForMultipleObjects, (PBYTE) Mine_WaitForMultipleObjects);
-  DetourFunctionWithTrampoline((PBYTE) Real_MsgWaitForMultipleObjects, (PBYTE) Mine_MsgWaitForMultipleObjects);
-  DetourFunctionWithTrampoline((PBYTE) Real_GetSystemTimeAsFileTime, (PBYTE) Mine_GetSystemTimeAsFileTime);
-  DetourFunctionWithTrampoline((PBYTE) Real_GetSystemTime, (PBYTE) Mine_GetSystemTime);
-  DetourFunctionWithTrampoline((PBYTE) Real_timeSetEvent, (PBYTE) Mine_timeSetEvent);
-  DetourFunctionWithTrampoline((PBYTE) Real_timeKillEvent, (PBYTE) Mine_timeKillEvent);
-  DetourFunctionWithTrampoline((PBYTE) Real_SetTimer, (PBYTE) Mine_SetTimer);
+  if(interceptAnything)
+  {
+    DetourFunctionWithTrampoline((PBYTE) Real_QueryPerformanceFrequency, (PBYTE) Mine_QueryPerformanceFrequency);
+    DetourFunctionWithTrampoline((PBYTE) Real_QueryPerformanceCounter, (PBYTE) Mine_QueryPerformanceCounter);
+    DetourFunctionWithTrampoline((PBYTE) Real_GetTickCount, (PBYTE) Mine_GetTickCount);
+    DetourFunctionWithTrampoline((PBYTE) Real_timeGetTime, (PBYTE) Mine_timeGetTime);
+    DetourFunctionWithTrampoline((PBYTE) Real_Sleep, (PBYTE) Mine_Sleep);
+    DetourFunctionWithTrampoline((PBYTE) Real_WaitForSingleObject, (PBYTE) Mine_WaitForSingleObject);
+    DetourFunctionWithTrampoline((PBYTE) Real_WaitForMultipleObjects, (PBYTE) Mine_WaitForMultipleObjects);
+    DetourFunctionWithTrampoline((PBYTE) Real_MsgWaitForMultipleObjects, (PBYTE) Mine_MsgWaitForMultipleObjects);
+    DetourFunctionWithTrampoline((PBYTE) Real_GetSystemTimeAsFileTime, (PBYTE) Mine_GetSystemTimeAsFileTime);
+    DetourFunctionWithTrampoline((PBYTE) Real_GetSystemTime, (PBYTE) Mine_GetSystemTime);
+    DetourFunctionWithTrampoline((PBYTE) Real_timeSetEvent, (PBYTE) Mine_timeSetEvent);
+    DetourFunctionWithTrampoline((PBYTE) Real_timeKillEvent, (PBYTE) Mine_timeKillEvent);
+    DetourFunctionWithTrampoline((PBYTE) Real_SetTimer, (PBYTE) Mine_SetTimer);
+  }
 
   stuckThread = (HANDLE) _beginthreadex(0,0,stuckThreadProc,0,0,0);
 }
@@ -516,9 +519,6 @@ void resetTiming()
 
 void nextFrameTiming()
 {
-  /*SetEvent(nextFrameEvent);
-  Real_Sleep(5);*/
-
   ResetEvent(resyncEvent);
   SetEvent(nextFrameEvent);
   if(waitCounter)
@@ -532,8 +532,6 @@ void nextFrameTiming()
 
   ResetEvent(nextFrameEvent);
   SetEvent(resyncEvent);
-  
-  //Real_Sleep(5);
 
   DWORD oldFrameTime = UMulDiv(currentFrame,1000*frameRateDenom,frameRateScaled);
   DWORD newFrameTime = UMulDiv(currentFrame+1,1000*frameRateDenom,frameRateScaled);

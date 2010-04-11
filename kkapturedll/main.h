@@ -1,5 +1,5 @@
 /* kkapture: intrusive demo video capturing.
- * Copyright (c) 2005-2009 Fabian "ryg/farbrausch" Giesen.
+ * Copyright (c) 2005-2010 Fabian "ryg/farbrausch" Giesen.
  *
  * This program is free software; you can redistribute and/or modify it under
  * the terms of the Artistic License, Version 2.0beta5, or (at your opinion)
@@ -37,7 +37,7 @@ extern bool exitNextFrame;
 extern void *hModule;
 
 // parameter block submitted by main app
-static const int PARAMVERSION = 3;
+static const int PARAMVERSION = 4;
 
 enum EncoderType
 {
@@ -72,6 +72,7 @@ struct ParameterBlock
   BOOL IsDebugged;
   BOOL PowerDownAfterwards;
   BOOL UseEncoderThread;
+  BOOL EnableGDICapture;
 
   DWORD CodecDataSize;
   UCHAR CodecSpecificData[16384];

@@ -1,3 +1,14 @@
+version 1.00:
+* major bump in version number! :)
+* timing: fixed a regression from version 0.07 (should work a lot better on vista and windows 7 now)
+* sound/timing: automatically advance frame after some time when app asks for the current time a certain number of times (helps with several quite intros)
+* sound: force fmodex to use dsound on vista/windows 7 (i won't write a windows audio session implementation if i don't have to)
+* sound: some tweaks in waveOut support. now works just fine with the MS GS synthesizer.
+* sound: make sure to return 0 as estimated latency for demos that use BASS. fixes asm 2009 invitation by andromeda.
+* video: can now capture programs that use GDI for output as well. not particularly well-tested. original code by iq.
+* "deep capture". can now kkapture demos that have a seperate launcher directly. tested on borg, etch-a-sketch. logfiles are now named
+  differently since there may be several! behavior if more than one program in the chain starts rendering is undefined (i.e. it won't work).
+
 version 0.09:
 * new startup instrumentation: yet another new approach to entry point determination (to work with address space layout randomization)
 * "attempt clean exit" key (right ctrl; has good chances of producing a usable .AVI, unlike ctrl-break)

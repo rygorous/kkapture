@@ -1,5 +1,5 @@
 /* kkapture: intrusive demo video capturing.
- * Copyright (c) 2005-2009 Fabian "ryg/farbrausch" Giesen.
+ * Copyright (c) 2005-2010 Fabian "ryg/farbrausch" Giesen.
  *
  * This program is free software; you can redistribute and/or modify it under
  * the terms of the Artistic License, Version 2.0beta5, or (at your opinion)
@@ -395,7 +395,7 @@ static void ImplementBltToPrimary(IUnknown *surf,int version)
       if(SUCCEEDED(((IDirectDrawSurface *) surf)->GetSurfaceDesc(&ddsd)))
         setCaptureResolution(ddsd.dwWidth,ddsd.dwHeight);
       else
-        printLog("video: couldn't get blit source surface desc\n");
+        printLog("video/ddraw: couldn't get blit source surface desc\n");
     }
     else
     {
@@ -406,7 +406,7 @@ static void ImplementBltToPrimary(IUnknown *surf,int version)
       if(SUCCEEDED(((IDirectDrawSurface4 *) surf)->GetSurfaceDesc(&ddsd)))
         setCaptureResolution(ddsd.dwWidth,ddsd.dwHeight);
       else
-        printLog("video: couldn't get blit source surface desc\n");
+        printLog("video/ddraw: couldn't get blit source surface desc\n");
     }
 
     VideoCaptureDataLock lock;

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="8,00"
+	Version="9,00"
 	Name="kkapture"
 	ProjectGUID="{DBA35513-DE77-4FE9-8B71-C483946E76FF}"
 	Keyword="Win32Proj"

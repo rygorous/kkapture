@@ -1,5 +1,5 @@
 /* kkapture: intrusive demo video capturing.
- * Copyright (c) 2005-2009 Fabian "ryg/farbrausch" Giesen.
+ * Copyright (c) 2005-2010 Fabian "ryg/farbrausch" Giesen.
  *
  * This program is free software; you can redistribute and/or modify it under
  * the terms of the Artistic License, Version 2.0beta5, or (at your opinion)
@@ -1353,9 +1353,10 @@ MMRESULT __stdcall Mine_waveOutGetPosition(HWAVEOUT hwo,LPMMTIME pmmt,UINT cbmmt
 
 MMRESULT __stdcall Mine_waveOutGetDevCaps(UINT_PTR uDeviceID,LPWAVEOUTCAPS pwoc,UINT cbwoc)
 {
-  TRACE(("waveOutGetDevCaps(%p,%p,%u)\n",uDeviceID,pwoc,cbwoc));
-
+  static const char deviceName[] = ".kkapture Audio";
   WaveOutImpl *impl;
+
+  TRACE(("waveOutGetDevCaps(%p,%p,%u)\n",uDeviceID,pwoc,cbwoc));
 
   if(uDeviceID == WAVE_MAPPER || uDeviceID == 0)
     impl = waveOutLast;
@@ -1374,7 +1375,7 @@ MMRESULT __stdcall Mine_waveOutGetDevCaps(UINT_PTR uDeviceID,LPWAVEOUTCAPS pwoc,
   pwoc->wMid = MM_MICROSOFT;
   pwoc->wPid = (uDeviceID == WAVE_MAPPER) ? MM_WAVE_MAPPER : MM_MSFT_GENERIC_WAVEOUT;
   pwoc->vDriverVersion = 0x100;
-  strcpy(pwoc->szPname,".kkapture Audio");
+  memcpy(pwoc->szPname,deviceName,sizeof(deviceName));
   pwoc->dwFormats = WAVE_FORMAT_1M08 | WAVE_FORMAT_1M16 | WAVE_FORMAT_1S08 | WAVE_FORMAT_1S16
     | WAVE_FORMAT_2M08 | WAVE_FORMAT_2M16 | WAVE_FORMAT_2S08 | WAVE_FORMAT_2S16
     | WAVE_FORMAT_4M08 | WAVE_FORMAT_4M16 | WAVE_FORMAT_4S08 | WAVE_FORMAT_4S16;

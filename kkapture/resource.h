@@ -23,6 +23,7 @@
 #define IDC_SOUNDSYS                    1024
 #define IDC_POWERDOWN                   1025
 #define IDC_ENCODERTHREAD               1026
+#define IDC_CAPTUREGDI                  1027
 
 // Next default values for new objects
 // 

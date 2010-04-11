@@ -1,5 +1,5 @@
 /* kkapture: intrusive demo video capturing.
- * Copyright (c) 2005-2009 Fabian "ryg/farbrausch" Giesen.
+ * Copyright (c) 2005-2010 Fabian "ryg/farbrausch" Giesen.
  *
  * This program is free software; you can redistribute and/or modify it under
  * the terms of the Artistic License, Version 2.0beta5, or (at your opinion)
@@ -197,9 +197,11 @@ BOOL __stdcall Mine_StretchBlt(HDC hdcDest,
 
 void initVideo_GDI()
 {
-  DetourFunctionWithTrampoline((PBYTE) Real_SetDIBitsToDevice,(PBYTE) Mine_SetDIBitsToDevice);
-  DetourFunctionWithTrampoline((PBYTE) Real_StretchDIBits,(PBYTE) Mine_StretchDIBits);
-  DetourFunctionWithTrampoline((PBYTE) Real_BitBlt,(PBYTE) Mine_BitBlt);
-  DetourFunctionWithTrampoline((PBYTE) Real_StretchBlt,(PBYTE) Mine_StretchBlt);
+  if(params.EnableGDICapture)
+  {
+    DetourFunctionWithTrampoline((PBYTE) Real_SetDIBitsToDevice,(PBYTE) Mine_SetDIBitsToDevice);
+    DetourFunctionWithTrampoline((PBYTE) Real_StretchDIBits,(PBYTE) Mine_StretchDIBits);
+    DetourFunctionWithTrampoline((PBYTE) Real_BitBlt,(PBYTE) Mine_BitBlt);
+    DetourFunctionWithTrampoline((PBYTE) Real_StretchBlt,(PBYTE) Mine_StretchBlt);
+  }
 }
-

@@ -16,6 +16,7 @@ checked with new timing (alphabetical order):
 - ballad of a cluster bomb - director's cut/kooma
 - bleam/lionhead
 - blunderbuss/fairlight
+- borg/rez (won't capture cleanly near 60fps for some reason; you need either automatic frameskip or a different framerate)
 - candystall/pittsburgh stallers vs. loonies
 - cat's cradle/matt current
 - chameleon/asd
@@ -36,6 +37,7 @@ checked with new timing (alphabetical order):
 - elektronics (win32)/doomsday
 - elevated/rgba+tbc
 - ephemera/approximate
+- etch-a-sketch/candela
 - extatique/adinpsz
 - f07/conspiracy
 - fall equals winter/replay
@@ -61,6 +63,7 @@ checked with new timing (alphabetical order):
 - hotel bar heroes/portal process
 - incyber/satori
 - insert coins/traction
+- kindercrasher/rgba
 - koneko/bitflavour
 - libgov/kolor
 - liquid lust/fairlight
@@ -78,7 +81,9 @@ checked with new timing (alphabetical order):
 - nature v2.0/threepixels
 - ninja in a box/tpolm
 - noumenon/andromeda (use auto skip)
+- nucleophile/portal process+tbc
 - blockbuster/outracks
+- panic room/fairlight
 - panjabmoore meets 007 again/calodox
 - passing/still	
 - perfect love/lkcc+bauknecht

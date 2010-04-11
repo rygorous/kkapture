@@ -1,25 +1,3 @@
-/* kkapture: intrusive demo video capturing.
- * Copyright (c) 2005-2009 Fabian "ryg/farbrausch" Giesen.
- *
- * This program is free software; you can redistribute and/or modify it under
- * the terms of the Artistic License, Version 2.0beta5, or (at your opinion)
- * any later version; all distributions of this program should contain this
- * license in a file named "LICENSE.txt".
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT UNLESS REQUIRED BY
- * LAW OR AGREED TO IN WRITING WILL ANY COPYRIGHT HOLDER OR CONTRIBUTOR
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
- * OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
- * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, PROFITS; OR
- * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
- * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
 // Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
@@ -29,9 +7,7 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "windows.h"
-
-#define IDC_STATIC              (-1)     // all static controls
+#include "afxres.h"
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -89,9 +65,8 @@ LANGUAGE LANG_NEUTRAL, SUBLANG_SYS_DEFAULT
 //
 
 IDD_MAINWIN DIALOGEX 0, 0, 258, 251
-STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | 
-    WS_SYSMENU
-CAPTION ".kkapture 0.10"
+STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION ".kkapture 1.00"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     DEFPUSHBUTTON   "kkapture!",IDOK,149,230,50,14
@@ -112,30 +87,20 @@ BEGIN
     LTEXT           "Video Codec:",IDC_VIDEOCODEC,14,84,176,8
     PUSHBUTTON      "Pick...",IDC_VCPICK,214,82,30,12
     GROUPBOX        "Tweaking",IDC_STATIC,7,103,244,61
-    CONTROL         "Capture Video",IDC_VCAPTURE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,14,114,61,10
-    CONTROL         "Capture Audio",IDC_ACAPTURE,"Button",BS_AUTOCHECKBOX | 
-                    WS_TABSTOP,14,126,62,10
-    CONTROL         "Skip digital silence at start",IDC_SKIPSILENCE,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,121,114,99,10
-    CONTROL         "Make Sleep() last one frame",IDC_SLEEPLAST,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,121,126,105,10
-    CONTROL         "New startup interception",IDC_NEWINTERCEPT,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,14,138,95,10
-    CONTROL         "BASS/FMOD interception",IDC_SOUNDSYS,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,121,138,120,10
-    CONTROL         "Power down on completion",IDC_POWERDOWN,"Button",BS_AUTOCHECKBOX |
-                    WS_TABSTOP,14,150,105,10
-    CONTROL         "Separate encoder thread",IDC_ENCODERTHREAD,"Button",BS_AUTOCHECKBOX |
-                    WS_TABSTOP,121,150,117,10
+    CONTROL         "Capture Video",IDC_VCAPTURE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,114,61,10
+    CONTROL         "Capture Audio",IDC_ACAPTURE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,126,62,10
+    CONTROL         "Skip digital silence at start",IDC_SKIPSILENCE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,121,114,99,10
+    CONTROL         "Make Sleep() last one frame",IDC_SLEEPLAST,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,121,126,105,10
+    CONTROL         "Intercept Windows GDI",IDC_CAPTUREGDI,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,138,95,10
+    CONTROL         "BASS/FMOD interception",IDC_SOUNDSYS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,121,138,120,10
+    CONTROL         "Power down on completion",IDC_POWERDOWN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,150,105,10
+    CONTROL         "Separate encoder thread",IDC_ENCODERTHREAD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,121,150,117,10
     GROUPBOX        "Auto-skip",IDC_STATIC,7,167,244,57
     CONTROL         "Enable automatic frameskip on timeout",IDC_AUTOSKIP,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,178,150,10
-    LTEXT           "Initial frame timeout (seconds):",IDC_STATIC,
-                    14,192,140,8
+    LTEXT           "Initial frame timeout (seconds):",IDC_STATIC,14,192,140,8
     EDITTEXT        IDC_FIRSTFRAMETIMEOUT,130,190,31,13,ES_AUTOHSCROLL
-    LTEXT           "Other frames timeout (seconds):",IDC_STATIC,
-                    14,208,140,8
+    LTEXT           "Other frames timeout (seconds):",IDC_STATIC,14,208,140,8
     EDITTEXT        IDC_OTHERFRAMETIMEOUT,130,206,31,13,ES_AUTOHSCROLL
 END
 

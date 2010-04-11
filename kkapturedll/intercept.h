@@ -1,5 +1,5 @@
 /* kkapture: intrusive demo video capturing.
- * Copyright (c) 2005-2009 Fabian "ryg/farbrausch" Giesen.
+ * Copyright (c) 2005-2010 Fabian "ryg/farbrausch" Giesen.
  *
  * This program is free software; you can redistribute and/or modify it under
  * the terms of the Artistic License, Version 2.0beta5, or (at your opinion)
@@ -37,9 +37,13 @@ enum ErrorCodes
   ERR_COULDNT_EXECUTE
 };
 
-extern "C" DLLEXPORT int CreateInstrumentedProcess(BOOL newIntercept,LPCTSTR appName,LPTSTR cmdLine,
+extern "C" DLLEXPORT int CreateInstrumentedProcessA(BOOL newIntercept,LPCSTR appName,LPSTR cmdLine,
   LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,
-  LPVOID env,LPCTSTR currentDir,LPSTARTUPINFO startupInfo,LPPROCESS_INFORMATION pi);
+  LPVOID env,LPCSTR currentDir,LPSTARTUPINFO startupInfo,LPPROCESS_INFORMATION pi);
+
+extern "C" DLLEXPORT int CreateInstrumentedProcessW(BOOL newIntercept,LPCWSTR appName,LPWSTR cmdLine,
+  LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,
+  LPVOID env,LPCWSTR currentDir,LPSTARTUPINFOW startupInfo,LPPROCESS_INFORMATION pi);
 
 void initProcessIntercept();
 

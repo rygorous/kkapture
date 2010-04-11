@@ -1,5 +1,5 @@
 /* kkapture: intrusive demo video capturing.
- * Copyright (c) 2005-2009 Fabian "ryg/farbrausch" Giesen.
+ * Copyright (c) 2005-2010 Fabian "ryg/farbrausch" Giesen.
  *
  * This program is free software; you can redistribute and/or modify it under
  * the terms of the Artistic License, Version 2.0beta5, or (at your opinion)
@@ -32,6 +32,8 @@
 #pragma comment(lib,"vfw32.lib")
 #pragma comment(lib,"msacm32.lib")
 
+#define COUNTOF(x) (sizeof(x)*sizeof*(x))
+
 static const TCHAR RegistryKeyName[] = _T("Software\\Farbrausch\\kkapture");
 static const int MAX_ARGS = _MAX_PATH*2;
 
@@ -52,24 +54,6 @@ static BOOL EnableDlgItem(HWND hWnd,int id,BOOL bEnable)
 {
   HWND hCtrlWnd = GetDlgItem(hWnd,id);
   return EnableWindow(hCtrlWnd,bEnable);
-}
-
-static BOOL IsWow64()
-{
-  typedef BOOL (WINAPI *LPFN_ISWOW64PROCESS) (HANDLE, PBOOL);
-  LPFN_ISWOW64PROCESS IsWow64Process = (LPFN_ISWOW64PROCESS) 
-    GetProcAddress(GetModuleHandle(_T("kernel32")),_T("IsWow64Process"));
-
-  if(IsWow64Process)
-  {
-    BOOL result;
-    if(!IsWow64Process(GetCurrentProcess(),&result))
-      result = FALSE;
-
-    return result;
-  }
-  else
-    return FALSE;
 }
 
 static void SetVideoCodecInfo(HWND hWndDlg,HIC codec)
@@ -119,12 +103,13 @@ static void LoadSettingsFromRegistry()
   Params.Encoder = (EncoderType) RegQueryDWord(hk,_T("VideoEncoder"),AVIEncoderVFW);
   Params.VideoCodec = RegQueryDWord(hk,_T("AVIVideoCodec"),mmioFOURCC('D','I','B',' '));
   Params.VideoQuality = RegQueryDWord(hk,_T("AVIVideoQuality"),ICQUALITY_DEFAULT);
-  Params.NewIntercept = RegQueryDWord(hk,_T("NewIntercept"),0);
+  Params.NewIntercept = TRUE; // always use new interception now.
   Params.SoundsysInterception = RegQueryDWord(hk,_T("SoundsysInterception"),1);
   Params.EnableAutoSkip = RegQueryDWord(hk,_T("EnableAutoSkip"),0);
   Params.FirstFrameTimeout = RegQueryDWord(hk,_T("FirstFrameTimeout"),1000);
   Params.FrameTimeout = RegQueryDWord(hk,_T("FrameTimeout"),500);
   Params.UseEncoderThread = RegQueryDWord(hk,_T("UseEncoderThread"),0);
+  Params.EnableGDICapture = RegQueryDWord(hk,_T("EnableGDICapture"),0);
 
   if(hk)
     RegCloseKey(hk);
@@ -262,14 +247,6 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
       EnableDlgItem(hWndDlg,IDC_VIDEOCODEC,Params.Encoder != BMPEncoder);
       EnableDlgItem(hWndDlg,IDC_VCPICK,Params.Encoder != BMPEncoder);
 
-      if(IsWow64())
-      {
-        CheckDlgButton(hWndDlg,IDC_NEWINTERCEPT,BST_CHECKED);
-        EnableDlgItem(hWndDlg,IDC_NEWINTERCEPT,FALSE);
-      }
-      else
-        CheckDlgButton(hWndDlg,IDC_NEWINTERCEPT,Params.NewIntercept ? BST_CHECKED : BST_UNCHECKED);
-
       if(Params.EnableAutoSkip)
         CheckDlgButton(hWndDlg,IDC_AUTOSKIP,BST_CHECKED);
       else
@@ -280,6 +257,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
 
       CheckDlgButton(hWndDlg,IDC_SOUNDSYS,Params.SoundsysInterception ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_ENCODERTHREAD,Params.UseEncoderThread ? BST_CHECKED : BST_UNCHECKED);
+      CheckDlgButton(hWndDlg,IDC_CAPTUREGDI,Params.EnableGDICapture ? BST_CHECKED : BST_UNCHECKED);
 
       HIC codec = ICOpen(ICTYPE_VIDEO,Params.VideoCodec,ICMODE_QUERY);
       SetVideoCodecInfo(hWndDlg,codec);
@@ -353,11 +331,12 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         Params.SoundMaxSkip = IsDlgButtonChecked(hWndDlg,IDC_SKIPSILENCE) == BST_CHECKED ? 10 : 0;
         Params.MakeSleepsLastOneFrame = IsDlgButtonChecked(hWndDlg,IDC_SLEEPLAST) == BST_CHECKED;
         Params.SleepTimeout = 2500; // yeah, this should be configurable
-        Params.NewIntercept = IsDlgButtonChecked(hWndDlg,IDC_NEWINTERCEPT) == BST_CHECKED;
+        Params.NewIntercept = TRUE; // this doesn't seem to cause *any* problems, while the old interception did.
         Params.SoundsysInterception = IsDlgButtonChecked(hWndDlg,IDC_SOUNDSYS) == BST_CHECKED;
         Params.EnableAutoSkip = autoSkip;
         Params.PowerDownAfterwards = IsDlgButtonChecked(hWndDlg,IDC_POWERDOWN) == BST_CHECKED;
         Params.UseEncoderThread = IsDlgButtonChecked(hWndDlg,IDC_ENCODERTHREAD) == BST_CHECKED;
+        Params.EnableGDICapture = IsDlgButtonChecked(hWndDlg,IDC_CAPTUREGDI) == BST_CHECKED;
 
         // save settings for next time
         SaveSettingsToRegistry();
@@ -502,26 +481,24 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
     _tcscat(commandLine,_T("\" "));
     _tcscat(commandLine,Arguments);
 
-    // determine kkapture dll path
-    TCHAR mypath[_MAX_PATH],dllpath[_MAX_PATH],exepath[_MAX_PATH];
-    TCHAR drive[_MAX_DRIVE],dir[_MAX_DIR],fname[_MAX_FNAME],ext[_MAX_EXT];
-    GetModuleFileName(0,mypath,_MAX_PATH);
-    _tsplitpath(mypath,drive,dir,fname,ext);
-    _tmakepath(dllpath,drive,dir,"kkapturedll","dll");
-
     // create process
-	  STARTUPINFO si;
+	  STARTUPINFOA si;
 	  PROCESS_INFORMATION pi;
 
     ZeroMemory(&si,sizeof(si));
     ZeroMemory(&pi,sizeof(pi));
     si.cb = sizeof(si);
 
+    // change to directory that contains executable
+    TCHAR exepath[_MAX_PATH];
+    TCHAR drive[_MAX_DRIVE],dir[_MAX_DIR],fname[_MAX_FNAME],ext[_MAX_EXT];
+
     _tsplitpath(ExeName,drive,dir,fname,ext);
     _tmakepath(exepath,drive,dir,_T(""),_T(""));
     SetCurrentDirectory(exepath);
 
-    int err = CreateInstrumentedProcess(Params.NewIntercept,ExeName,commandLine,0,0,TRUE,
+    // actually start the target
+    int err = CreateInstrumentedProcessA(Params.NewIntercept,ExeName,commandLine,0,0,TRUE,
       CREATE_DEFAULT_ERROR_MODE,0,0,&si,&pi);
     switch(err)
     {
