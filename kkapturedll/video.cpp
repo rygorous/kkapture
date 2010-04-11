@@ -471,6 +471,11 @@ bool GenericBlitter::IsPaletted() const
   return Paletted;
 }
 
+int GenericBlitter::GetBytesPerPixel() const
+{
+  return BytesPerPixel;
+}
+
 void GenericBlitter::BlitOneLine(unsigned char *src,unsigned char *dst,int count)
 {
   if(BytesPerPixel == 3 && RShift == 16 && RMask == 255 &&

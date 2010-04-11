@@ -24,6 +24,10 @@
 #define IDC_POWERDOWN                   1025
 #define IDC_ENCODERTHREAD               1026
 #define IDC_CAPTUREGDI                  1027
+#define IDC_AUTOSKIP2                   1028
+#define IDC_AUTOSKIP_TIMER              1028
+#define IDC_ENCODERTHREAD2              1029
+#define IDC_VIRTFRAMEBUF                1029
 
 // Next default values for new objects
 // 

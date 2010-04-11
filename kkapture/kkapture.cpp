@@ -110,6 +110,8 @@ static void LoadSettingsFromRegistry()
   Params.FrameTimeout = RegQueryDWord(hk,_T("FrameTimeout"),500);
   Params.UseEncoderThread = RegQueryDWord(hk,_T("UseEncoderThread"),0);
   Params.EnableGDICapture = RegQueryDWord(hk,_T("EnableGDICapture"),0);
+  Params.FrequentTimerCheck = RegQueryDWord(hk,_T("FrequentTimerCheck"),1);
+  Params.VirtualFramebuffer = RegQueryDWord(hk,_T("VirtualFramebuffer"),0);
 
   if(hk)
     RegCloseKey(hk);
@@ -132,6 +134,8 @@ static void SaveSettingsToRegistry()
     RegSetDWord(hk,_T("FirstFrameTimeout"),Params.FirstFrameTimeout);
     RegSetDWord(hk,_T("FrameTimeout"),Params.FrameTimeout);
     RegSetDWord(hk,_T("UseEncoderThread"),Params.UseEncoderThread);
+    RegSetDWord(hk,_T("FrequentTimerCheck"),Params.FrequentTimerCheck);
+    RegSetDWord(hk,_T("VirtualFramebuffer"),Params.VirtualFramebuffer);
     RegCloseKey(hk);
   }
 }
@@ -247,6 +251,8 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
       EnableDlgItem(hWndDlg,IDC_VIDEOCODEC,Params.Encoder != BMPEncoder);
       EnableDlgItem(hWndDlg,IDC_VCPICK,Params.Encoder != BMPEncoder);
 
+      CheckDlgButton(hWndDlg,IDC_AUTOSKIP_TIMER,Params.FrequentTimerCheck ? BST_CHECKED : BST_UNCHECKED);
+
       if(Params.EnableAutoSkip)
         CheckDlgButton(hWndDlg,IDC_AUTOSKIP,BST_CHECKED);
       else
@@ -258,6 +264,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
       CheckDlgButton(hWndDlg,IDC_SOUNDSYS,Params.SoundsysInterception ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_ENCODERTHREAD,Params.UseEncoderThread ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_CAPTUREGDI,Params.EnableGDICapture ? BST_CHECKED : BST_UNCHECKED);
+      CheckDlgButton(hWndDlg,IDC_VIRTFRAMEBUF,Params.VirtualFramebuffer ? BST_CHECKED : BST_UNCHECKED);
 
       HIC codec = ICOpen(ICTYPE_VIDEO,Params.VideoCodec,ICMODE_QUERY);
       SetVideoCodecInfo(hWndDlg,codec);
@@ -333,10 +340,12 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         Params.SleepTimeout = 2500; // yeah, this should be configurable
         Params.NewIntercept = TRUE; // this doesn't seem to cause *any* problems, while the old interception did.
         Params.SoundsysInterception = IsDlgButtonChecked(hWndDlg,IDC_SOUNDSYS) == BST_CHECKED;
+        Params.FrequentTimerCheck = IsDlgButtonChecked(hWndDlg,IDC_AUTOSKIP_TIMER) == BST_CHECKED;
         Params.EnableAutoSkip = autoSkip;
         Params.PowerDownAfterwards = IsDlgButtonChecked(hWndDlg,IDC_POWERDOWN) == BST_CHECKED;
         Params.UseEncoderThread = IsDlgButtonChecked(hWndDlg,IDC_ENCODERTHREAD) == BST_CHECKED;
         Params.EnableGDICapture = IsDlgButtonChecked(hWndDlg,IDC_CAPTUREGDI) == BST_CHECKED;
+        Params.VirtualFramebuffer = IsDlgButtonChecked(hWndDlg,IDC_VIRTFRAMEBUF) == BST_CHECKED;
 
         // save settings for next time
         SaveSettingsToRegistry();

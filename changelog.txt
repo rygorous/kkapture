@@ -1,3 +1,7 @@
+version 1.01:
+* "skip frames on frequent timer checks" can now be turned off; threshold set to a substantially higher value.
+* "virtual framebuffer" mode for old, badly written ddraw apps (e.g. "fall equals winter"). won't work with hw accelerated blits and clears! use as a last resort.
+
 version 1.00:
 * major bump in version number! :)
 * timing: fixed a regression from version 0.07 (should work a lot better on vista and windows 7 now)

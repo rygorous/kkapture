@@ -86,6 +86,7 @@ public:
   void SetPalette(const struct tagPALETTEENTRY *palette,int nEntries);
 
   bool IsPaletted() const;
+  int  GetBytesPerPixel() const;
 
   void BlitOneLine(unsigned char *src,unsigned char *dst,int nPixels);
 };

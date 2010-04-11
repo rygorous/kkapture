@@ -37,6 +37,7 @@ typedef HRESULT (__stdcall *PQueryInterface)(IUnknown *dd,REFIID iid,LPVOID *ppO
 typedef HRESULT (__stdcall *PDDraw_CreateSurface)(IUnknown *dd,LPDDSURFACEDESC ddsd,LPDIRECTDRAWSURFACE *surf,IUnknown *pUnkOuter);
 typedef HRESULT (__stdcall *PDDrawSurface_Blt)(IUnknown *dds,LPRECT destrect,IUnknown *src,LPRECT srcrect,DWORD dwFlags,LPDDBLTFX fx);
 typedef HRESULT (__stdcall *PDDrawSurface_Flip)(IUnknown *dds,IUnknown *surf,DWORD flags);
+typedef HRESULT (__stdcall *PDDrawSurface_Lock)(IUnknown *dds,LPRECT rect,LPDDSURFACEDESC desc,DWORD flags,HANDLE hnd);
 typedef HRESULT (__stdcall *PDDrawSurface_Unlock)(IUnknown *dds,void *ptr);
 
 static PQueryInterface Real_DDraw_QueryInterface = 0;
@@ -44,6 +45,7 @@ static PDDraw_CreateSurface Real_DDraw_CreateSurface = 0;
 static PQueryInterface Real_DDrawSurface_QueryInterface = 0;
 static PDDrawSurface_Blt Real_DDrawSurface_Blt = 0;
 static PDDrawSurface_Flip Real_DDrawSurface_Flip = 0;
+static PDDrawSurface_Lock Real_DDrawSurface_Lock = 0;
 static PDDrawSurface_Unlock Real_DDrawSurface_Unlock = 0;
 
 static PQueryInterface Real_DDraw2_QueryInterface = 0;
@@ -51,11 +53,13 @@ static PDDraw_CreateSurface Real_DDraw2_CreateSurface = 0;
 static PQueryInterface Real_DDrawSurface2_QueryInterface = 0;
 static PDDrawSurface_Blt Real_DDrawSurface2_Blt = 0;
 static PDDrawSurface_Flip Real_DDrawSurface2_Flip = 0;
+static PDDrawSurface_Lock Real_DDrawSurface2_Lock = 0;
 static PDDrawSurface_Unlock Real_DDrawSurface2_Unlock = 0;
 
 static PQueryInterface Real_DDrawSurface3_QueryInterface = 0;
 static PDDrawSurface_Blt Real_DDrawSurface3_Blt = 0;
 static PDDrawSurface_Flip Real_DDrawSurface3_Flip = 0;
+static PDDrawSurface_Lock Real_DDrawSurface3_Lock = 0;
 static PDDrawSurface_Unlock Real_DDrawSurface3_Unlock = 0;
 
 static PQueryInterface Real_DDraw4_QueryInterface = 0;
@@ -63,6 +67,7 @@ static PDDraw_CreateSurface Real_DDraw4_CreateSurface = 0;
 static PQueryInterface Real_DDrawSurface4_QueryInterface = 0;
 static PDDrawSurface_Blt Real_DDrawSurface4_Blt = 0;
 static PDDrawSurface_Flip Real_DDrawSurface4_Flip = 0;
+static PDDrawSurface_Lock Real_DDrawSurface4_Lock = 0;
 static PDDrawSurface_Unlock Real_DDrawSurface4_Unlock = 0;
 
 static PQueryInterface Real_DDraw7_QueryInterface = 0;
@@ -70,6 +75,7 @@ static PDDraw_CreateSurface Real_DDraw7_CreateSurface = 0;
 static PQueryInterface Real_DDrawSurface7_QueryInterface = 0;
 static PDDrawSurface_Blt Real_DDrawSurface7_Blt = 0;
 static PDDrawSurface_Flip Real_DDrawSurface7_Flip = 0;
+static PDDrawSurface_Lock Real_DDrawSurface7_Lock = 0;
 static PDDrawSurface_Unlock Real_DDrawSurface7_Unlock = 0;
 
 static IUnknown *PrimaryDDraw = 0;
@@ -168,15 +174,13 @@ class DDrawBlitter : public GenericBlitter
   }
 
 public:
-  bool BlitSurfaceToCapture(IDirectDrawSurface *surf,int version)
+  bool SetFormatFromSurface(IUnknown *surfPtr)
   {
+    IDirectDrawSurface *surf = (IDirectDrawSurface *) surfPtr;
+
     DDPIXELFORMAT fmt;
     ZeroMemory(&fmt,sizeof(fmt));
     fmt.dwSize = sizeof(fmt);
-
-    IDirectDrawSurface* blitSurface = GetBlitSurface();
-    if(!blitSurface)
-      return false;
 
     if(FAILED(surf->GetPixelFormat(&fmt)))
     {
@@ -187,6 +191,15 @@ public:
     SetFormat(&fmt);
     if(IsPaletted())
       UpdatePalette();
+
+    return true;
+  }
+
+  bool BlitSurfaceToCapture(IDirectDrawSurface *surf,int version)
+  {
+    IDirectDrawSurface* blitSurface = GetBlitSurface();
+    if(!blitSurface || !SetFormatFromSurface(surf))
+      return false;
 
     // blit backbuffer to our readback surface
     RECT rc;
@@ -377,6 +390,42 @@ static void ImplementFlip(IUnknown *surf,int version)
   nextFrame();
 }
 
+static bool GetResolutionFromSurface(IUnknown *surf,int version,int &width,int &height)
+{
+  if(version < 4)
+  {
+    DDSURFACEDESC ddsd;
+    ZeroMemory(&ddsd,sizeof(ddsd));
+
+    ddsd.dwSize = sizeof(ddsd);
+    if(SUCCEEDED(((IDirectDrawSurface *) surf)->GetSurfaceDesc(&ddsd)))
+    {
+      width = ddsd.dwWidth;
+      height = ddsd.dwHeight;
+      return true;
+    }
+    else
+      printLog("video/ddraw: couldn't get blit source surface desc\n");
+  }
+  else
+  {
+    DDSURFACEDESC2 ddsd;
+    ZeroMemory(&ddsd,sizeof(ddsd));
+    
+    ddsd.dwSize = sizeof(ddsd);
+    if(SUCCEEDED(((IDirectDrawSurface4 *) surf)->GetSurfaceDesc(&ddsd)))
+    {
+      width = ddsd.dwWidth;
+      height = ddsd.dwHeight;
+      return true;
+    }
+    else
+      printLog("video/ddraw: couldn't get blit source surface desc\n");
+  }
+
+  return false;
+}
+
 static void ImplementBltToPrimary(IUnknown *surf,int version)
 {
   if(!surf)
@@ -386,33 +435,81 @@ static void ImplementBltToPrimary(IUnknown *surf,int version)
 
   if(params.CaptureVideo)
   {
-    if(version < 4)
-    {
-      DDSURFACEDESC ddsd;
-      ZeroMemory(&ddsd,sizeof(ddsd));
-
-      ddsd.dwSize = sizeof(ddsd);
-      if(SUCCEEDED(((IDirectDrawSurface *) surf)->GetSurfaceDesc(&ddsd)))
-        setCaptureResolution(ddsd.dwWidth,ddsd.dwHeight);
-      else
-        printLog("video/ddraw: couldn't get blit source surface desc\n");
-    }
-    else
-    {
-      DDSURFACEDESC2 ddsd;
-      ZeroMemory(&ddsd,sizeof(ddsd));
-      
-      ddsd.dwSize = sizeof(ddsd);
-      if(SUCCEEDED(((IDirectDrawSurface4 *) surf)->GetSurfaceDesc(&ddsd)))
-        setCaptureResolution(ddsd.dwWidth,ddsd.dwHeight);
-      else
-        printLog("video/ddraw: couldn't get blit source surface desc\n");
-    }
+    int width,height;
+    if(GetResolutionFromSurface(surf,version,width,height))
+      setCaptureResolution(width,height);
 
     VideoCaptureDataLock lock;
-
     if(Blitter.BlitSurfaceToCapture((IDirectDrawSurface *) surf,version))
       encoder->WriteFrame(captureData);
+  }
+
+  nextFrame();
+}
+
+static unsigned char *primaryData=0, *primaryLockPtr=0;
+static int primaryWidth, primaryHeight, primaryPitch;
+
+static void ImplementLockPrimary(IUnknown *surf,LPDDSURFACEDESC ddsd,int version)
+{
+  if(!surf || !params.VirtualFramebuffer)
+    return;
+
+  videoNeedEncoder();
+
+  if(params.CaptureVideo)
+  {
+    int width,height;
+    if(GetResolutionFromSurface(surf,version,width,height))
+      setCaptureResolution(width,height);
+
+    if(Blitter.SetFormatFromSurface(surf) && !primaryData)
+    {
+      // save orig. lock parameters
+      primaryLockPtr = (unsigned char*) ddsd->lpSurface;
+      primaryPitch = ddsd->lPitch;
+      primaryWidth = width;
+      primaryHeight = height;
+
+      // redirect app to our own buffer
+      int bufStride = primaryWidth * Blitter.GetBytesPerPixel();
+      primaryData = new unsigned char[bufStride * primaryHeight];
+      memset(primaryData,0,bufStride * primaryHeight);
+
+      ddsd->lpSurface = primaryData;
+      ddsd->lPitch = bufStride;
+    }
+  }
+}
+
+static void ImplementUnlockPrimary()
+{
+  if(primaryData)
+  {
+    int bufStride = primaryWidth * Blitter.GetBytesPerPixel();
+
+    {
+      VideoCaptureDataLock lock;
+
+      // convert from temp buffer to capture buffer
+      for(int y=0;y<captureHeight;y++)
+      {
+        unsigned char *src = primaryData + (captureHeight-1-y) * bufStride;
+        unsigned char *dst = captureData + y * captureWidth * 3;
+
+        Blitter.BlitOneLine(src,dst,captureWidth);
+      }
+
+      encoder->WriteFrame(captureData);
+    }
+
+    // copy from temp buffer to primary surface so user sees what's going on
+    for(int y=0;y<primaryHeight;y++)
+      memcpy(primaryLockPtr + y*primaryPitch,primaryData + y*bufStride,bufStride);
+
+    // free temp buffer again
+    delete[] primaryData;
+    primaryData = 0;
   }
 
   nextFrame();
@@ -461,10 +558,22 @@ static HRESULT __stdcall Mine_DDrawSurface_Flip(IUnknown *me,IUnknown *other,DWO
   return Real_DDrawSurface_Flip(me,other,flags);
 }
 
+static HRESULT __stdcall Mine_DDrawSurface_Lock(IUnknown *me,LPRECT rect,LPDDSURFACEDESC desc,DWORD flags,HANDLE hnd)
+{
+  HRESULT hr = Real_DDrawSurface_Lock(me,rect,desc,flags,hnd);
+  if(SUCCEEDED(hr) && rect == 0 && PrimarySurfaceVersion == 1 && me == PrimarySurface)
+    ImplementLockPrimary(me,desc,1);
+
+  return hr;
+}
+
 static HRESULT __stdcall Mine_DDrawSurface_Unlock(IUnknown *me,void *ptr)
 {
+  if(params.VirtualFramebuffer && PrimarySurfaceVersion == 1 && me == PrimarySurface)
+    ImplementUnlockPrimary();
+
   HRESULT hr = Real_DDrawSurface_Unlock(me,ptr);
-  if(SUCCEEDED(hr) && PrimarySurfaceVersion == 1 && me == PrimarySurface)
+  if(SUCCEEDED(hr) && !params.VirtualFramebuffer && PrimarySurfaceVersion == 1 && me == PrimarySurface)
     ImplementBltToPrimary(me,1);
 
   return hr;
@@ -513,10 +622,22 @@ static HRESULT __stdcall Mine_DDrawSurface2_Flip(IUnknown *me,IUnknown *other,DW
   return Real_DDrawSurface2_Flip(me,other,flags | DDFLIP_NOVSYNC);
 }
 
+static HRESULT __stdcall Mine_DDrawSurface2_Lock(IUnknown *me,LPRECT rect,LPDDSURFACEDESC desc,DWORD flags,HANDLE hnd)
+{
+  HRESULT hr = Real_DDrawSurface_Lock(me,rect,desc,flags,hnd);
+  if(SUCCEEDED(hr) && rect == 0 && PrimarySurfaceVersion == 2 && me == PrimarySurface)
+    ImplementLockPrimary(me,desc,2);
+
+  return hr;
+}
+
 static HRESULT __stdcall Mine_DDrawSurface2_Unlock(IUnknown *me,void *ptr)
 {
+  if(params.VirtualFramebuffer && PrimarySurfaceVersion == 2 && me == PrimarySurface)
+    ImplementUnlockPrimary();
+
   HRESULT hr = Real_DDrawSurface2_Unlock(me,ptr);
-  if(SUCCEEDED(hr) && PrimarySurfaceVersion == 2 && me == PrimarySurface)
+  if(SUCCEEDED(hr) && !params.VirtualFramebuffer && PrimarySurfaceVersion == 2 && me == PrimarySurface)
     ImplementBltToPrimary(me,2);
 
   return hr;
@@ -547,10 +668,22 @@ static HRESULT __stdcall Mine_DDrawSurface3_Flip(IUnknown *me,IUnknown *other,DW
   return Real_DDrawSurface3_Flip(me,other,flags | DDFLIP_NOVSYNC);
 }
 
+static HRESULT __stdcall Mine_DDrawSurface3_Lock(IUnknown *me,LPRECT rect,LPDDSURFACEDESC desc,DWORD flags,HANDLE hnd)
+{
+  HRESULT hr = Real_DDrawSurface3_Lock(me,rect,desc,flags,hnd);
+  if(SUCCEEDED(hr) && rect == 0 && PrimarySurfaceVersion == 3 && me == PrimarySurface)
+    ImplementLockPrimary(me,desc,3);
+
+  return hr;
+}
+
 static HRESULT __stdcall Mine_DDrawSurface3_Unlock(IUnknown *me,void *ptr)
 {
+  if(params.VirtualFramebuffer && PrimarySurfaceVersion == 3 && me == PrimarySurface)
+    ImplementUnlockPrimary();
+
   HRESULT hr = Real_DDrawSurface3_Unlock(me,ptr);
-  if(SUCCEEDED(hr) && PrimarySurfaceVersion == 3 && me == PrimarySurface)
+  if(SUCCEEDED(hr) && !params.VirtualFramebuffer && PrimarySurfaceVersion == 3 && me == PrimarySurface)
     ImplementBltToPrimary(me,3);
 
   return hr;
@@ -599,10 +732,23 @@ static HRESULT __stdcall Mine_DDrawSurface4_Flip(IUnknown *me,IUnknown *other,DW
   return Real_DDrawSurface4_Flip(me,other,flags | DDFLIP_NOVSYNC);
 }
 
+static HRESULT __stdcall Mine_DDrawSurface4_Lock(IUnknown *me,LPRECT rect,LPDDSURFACEDESC desc,DWORD flags,HANDLE hnd)
+{
+  HRESULT hr = Real_DDrawSurface4_Lock(me,rect,desc,flags,hnd);
+  if(SUCCEEDED(hr) && rect == 0 && PrimarySurfaceVersion == 4 && me == PrimarySurface)
+    ImplementLockPrimary(me,desc,4);
+
+  return hr;
+}
+
+
 static HRESULT __stdcall Mine_DDrawSurface4_Unlock(IUnknown *me,void *ptr)
 {
+  if(params.VirtualFramebuffer && PrimarySurfaceVersion == 4 && me == PrimarySurface)
+    ImplementUnlockPrimary();
+
   HRESULT hr = Real_DDrawSurface4_Unlock(me,ptr);
-  if(SUCCEEDED(hr) && PrimarySurfaceVersion == 4 && me == PrimarySurface)
+  if(SUCCEEDED(hr) && !params.VirtualFramebuffer && PrimarySurfaceVersion == 4 && me == PrimarySurface)
     ImplementBltToPrimary(me,4);
 
   return hr;
@@ -651,10 +797,22 @@ static HRESULT __stdcall Mine_DDrawSurface7_Flip(IUnknown *me,IUnknown *other,DW
   return Real_DDrawSurface7_Flip(me,other,flags | DDFLIP_NOVSYNC);
 }
 
+static HRESULT __stdcall Mine_DDrawSurface7_Lock(IUnknown *me,LPRECT rect,LPDDSURFACEDESC desc,DWORD flags,HANDLE hnd)
+{
+  HRESULT hr = Real_DDrawSurface_Lock(me,rect,desc,flags,hnd);
+  if(SUCCEEDED(hr) && rect == 0 && PrimarySurfaceVersion == 7 && me == PrimarySurface)
+    ImplementLockPrimary(me,desc,7);
+
+  return hr;
+}
+
 static HRESULT __stdcall Mine_DDrawSurface7_Unlock(IUnknown *me,void *ptr)
 {
+  if(params.VirtualFramebuffer && PrimarySurfaceVersion == 7 && me == PrimarySurface)
+    ImplementUnlockPrimary();
+
   HRESULT hr = Real_DDrawSurface7_Unlock(me,ptr);
-  if(SUCCEEDED(hr) && PrimarySurfaceVersion == 7 && me == PrimarySurface)
+  if(SUCCEEDED(hr) && !params.VirtualFramebuffer && PrimarySurfaceVersion == 7 && me == PrimarySurface)
     ImplementBltToPrimary(me,7);
 
   return hr;
@@ -714,6 +872,9 @@ static void PatchDDrawSurface(IUnknown *dd,int version)
     if(!Real_DDrawSurface_Flip)
       Real_DDrawSurface_Flip = (PDDrawSurface_Flip) DetourCOM(dd,11,(PBYTE) Mine_DDrawSurface_Flip);
 
+    if(!Real_DDrawSurface_Lock)
+      Real_DDrawSurface_Lock = (PDDrawSurface_Lock) DetourCOM(dd,25,(PBYTE) Mine_DDrawSurface_Lock);
+
     if(!Real_DDrawSurface_Unlock)
       Real_DDrawSurface_Unlock = (PDDrawSurface_Unlock) DetourCOM(dd,32,(PBYTE) Mine_DDrawSurface_Unlock);
     break;
@@ -727,6 +888,9 @@ static void PatchDDrawSurface(IUnknown *dd,int version)
 
     if(!Real_DDrawSurface2_Flip)
       Real_DDrawSurface2_Flip = (PDDrawSurface_Flip) DetourCOM(dd,11,(PBYTE) Mine_DDrawSurface2_Flip);
+
+    if(!Real_DDrawSurface2_Lock)
+      Real_DDrawSurface2_Lock = (PDDrawSurface_Lock) DetourCOM(dd,25,(PBYTE) Mine_DDrawSurface2_Lock);
 
     if(!Real_DDrawSurface2_Unlock)
       Real_DDrawSurface2_Unlock = (PDDrawSurface_Unlock) DetourCOM(dd,32,(PBYTE) Mine_DDrawSurface2_Unlock);
@@ -742,6 +906,9 @@ static void PatchDDrawSurface(IUnknown *dd,int version)
     if(!Real_DDrawSurface3_Flip)
       Real_DDrawSurface3_Flip = (PDDrawSurface_Flip) DetourCOM(dd,11,(PBYTE) Mine_DDrawSurface3_Flip);
 
+    if(!Real_DDrawSurface3_Lock)
+      Real_DDrawSurface3_Lock = (PDDrawSurface_Lock) DetourCOM(dd,25,(PBYTE) Mine_DDrawSurface3_Lock);
+
     if(!Real_DDrawSurface3_Unlock)
       Real_DDrawSurface3_Unlock = (PDDrawSurface_Unlock) DetourCOM(dd,32,(PBYTE) Mine_DDrawSurface3_Unlock);
     break;
@@ -756,6 +923,9 @@ static void PatchDDrawSurface(IUnknown *dd,int version)
     if(!Real_DDrawSurface4_Flip)
       Real_DDrawSurface4_Flip = (PDDrawSurface_Flip) DetourCOM(dd,11,(PBYTE) Mine_DDrawSurface4_Flip);
 
+    if(!Real_DDrawSurface4_Lock)
+      Real_DDrawSurface4_Lock = (PDDrawSurface_Lock) DetourCOM(dd,25,(PBYTE) Mine_DDrawSurface4_Lock);
+
     if(!Real_DDrawSurface4_Unlock)
       Real_DDrawSurface4_Unlock = (PDDrawSurface_Unlock) DetourCOM(dd,32,(PBYTE) Mine_DDrawSurface4_Unlock);
     break;
@@ -769,6 +939,9 @@ static void PatchDDrawSurface(IUnknown *dd,int version)
 
     if(!Real_DDrawSurface7_Flip)
       Real_DDrawSurface7_Flip = (PDDrawSurface_Flip) DetourCOM(dd,11,(PBYTE) Mine_DDrawSurface7_Flip);
+
+    if(!Real_DDrawSurface7_Lock)
+      Real_DDrawSurface7_Lock = (PDDrawSurface_Lock) DetourCOM(dd,25,(PBYTE) Mine_DDrawSurface7_Lock);
 
     if(!Real_DDrawSurface7_Unlock)
       Real_DDrawSurface7_Unlock = (PDDrawSurface_Unlock) DetourCOM(dd,32,(PBYTE) Mine_DDrawSurface7_Unlock);

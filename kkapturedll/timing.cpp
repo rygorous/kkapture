@@ -59,7 +59,7 @@ DETOUR_TRAMPOLINE(UINT_PTR __stdcall Real_SetTimer(HWND hWnd,UINT_PTR uIDEvent,U
 
 // if timer functions are called frequently in a single frame, assume the app is waiting for the
 // current time to change and advance it. this is the threshold for "frequent" calls.
-static const LONG MAX_TIMERQUERY_PER_FRAME = 16384;
+static const LONG MAX_TIMERQUERY_PER_FRAME = 256*1024;
 
 // timer seeds
 static bool TimersSeeded = false;
@@ -92,7 +92,7 @@ static void seedAllTimers()
 
 static int getFrameTimingAndSeed()
 {
-  if(InterlockedIncrement(&timerHammeringCounter) == MAX_TIMERQUERY_PER_FRAME)
+  if(params.FrequentTimerCheck && InterlockedIncrement(&timerHammeringCounter) == MAX_TIMERQUERY_PER_FRAME)
   {
     printLog("timing: application is hammering timer calls, advancing time. (frame = %d)\n",getFrameTiming());
     skipFrame();

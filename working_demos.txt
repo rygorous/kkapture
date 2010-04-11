@@ -40,7 +40,7 @@ checked with new timing (alphabetical order):
 - etch-a-sketch/candela
 - extatique/adinpsz
 - f07/conspiracy
-- fall equals winter/replay
+- fall equals winter/replay (use "virtual framebuffer" mode, you need to re-add the white background yourself)
 - fairytale/traction+brainstorm
 - final audition/plastic
 - first offence/parapete
