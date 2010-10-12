@@ -1,3 +1,5 @@
+* sound: lock entire directsound buffer when dwBytes=0 (fix for "mother mother, my ears bleed")
+
 version 1.01:
 * "skip frames on frequent timer checks" can now be turned off; threshold set to a substantially higher value.
 * "virtual framebuffer" mode for old, badly written ddraw apps (e.g. "fall equals winter"). won't work with hw accelerated blits and clears! use as a last resort.

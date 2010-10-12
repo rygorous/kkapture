@@ -570,14 +570,11 @@ public:
     if(dwFlags & DSBLOCK_FROMWRITECURSOR)
       dwOffset = WriteCursor();
 
-    if(dwFlags & DSBLOCK_ENTIREBUFFER)
+    if((dwFlags & DSBLOCK_ENTIREBUFFER) || !dwBytes) // !dwBytes check not specified, but added for "mother mother my ears bleed"
       dwBytes = Bytes;
 
     if(dwOffset >= Bytes || dwBytes > Bytes)
-    {
-      LeaveCriticalSection(&BufferLock);
       return DSERR_INVALIDPARAM;
-    }
 
     if(dwOffset + dwBytes <= Bytes) // no wrap
     {
