@@ -26,6 +26,18 @@
 
 #define COUNTOF(x) (sizeof(x)/sizeof(*x))
 
+static bool MatchesProcessString(HANDLE hProcess,BYTE *addr,const char *str)
+{
+  int len = strlen(str);
+  BYTE *buffer = (BYTE *) alloca(len + 1);
+  DWORD read;
+
+  if(ReadProcessMemory(hProcess,addr,buffer,len+1,&read) && read==len+1)
+    return memcmp(buffer,str,len+1) == 0;
+  else
+    return false;
+}
+
 static void *GetEntryPoint(HANDLE hProcess,void *baseAddr)
 {
   IMAGE_DOS_HEADER doshdr;
@@ -43,8 +55,27 @@ static void *GetEntryPoint(HANDLE hProcess,void *baseAddr)
   if(nthdr.Signature != IMAGE_NT_SIGNATURE
     || nthdr.FileHeader.Machine != IMAGE_FILE_MACHINE_I386
     || nthdr.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR32_MAGIC
+    || !(nthdr.FileHeader.Characteristics & IMAGE_FILE_EXECUTABLE_IMAGE)
     || !nthdr.OptionalHeader.AddressOfEntryPoint)
     return 0;
+
+  // need to look at import directory: is it a .NET executable?
+  if(nthdr.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size)
+  {
+    DWORD va = nthdr.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
+
+    // check for import of mscoree.dll
+    IMAGE_IMPORT_DESCRIPTOR desc;
+    if(ReadProcessMemory(hProcess,base + va,&desc,sizeof(desc),&read) && read == sizeof(desc))
+    {
+      if(MatchesProcessString(hProcess,base + desc.Name,"mscoree.dll"))
+      {
+        // yes, .NET process - instrument thread start instead.
+        void *ptr = GetProcAddress(LoadLibrary("ntdll.dll"), "RtlUserThreadStart");
+        return ptr;
+      }
+    }
+  }
 
   return (void*) (base + nthdr.OptionalHeader.AddressOfEntryPoint);
 }
@@ -138,6 +169,13 @@ static bool PrepareInstrumentation(HANDLE hProcess,BYTE *workArea,WCHAR *dllName
 
       code += 4;
       sourcePtr += 4;
+    }
+    else if(sourcePtr[0] == 0xff && sourcePtr[1] == 0x25) // jmp [offset]
+    {
+      memcpy(code, sourcePtr, 6); // can just copy verbatim
+      
+      code += 6;
+      sourcePtr += 6;
     }
     else // not a jump/call, copy instruction
     {
