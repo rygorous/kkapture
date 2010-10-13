@@ -26,179 +26,27 @@
 
 #define COUNTOF(x) (sizeof(x)/sizeof(*x))
 
-static bool MatchesProcessString(HANDLE hProcess,BYTE *addr,const char *str)
+static bool InjectDLL(HANDLE hProcess,WCHAR *dllName)
 {
-  int len = strlen(str);
-  BYTE *buffer = (BYTE *) alloca(len + 1);
-  DWORD read;
-
-  if(ReadProcessMemory(hProcess,addr,buffer,len+1,&read) && read==len+1)
-    return memcmp(buffer,str,len+1) == 0;
-  else
-    return false;
-}
-
-static void *GetEntryPoint(HANDLE hProcess,void *baseAddr)
-{
-  IMAGE_DOS_HEADER doshdr;
-  IMAGE_NT_HEADERS32 nthdr;
-  DWORD read;
-  BYTE *base = (BYTE *) baseAddr;
-
-  if(!ReadProcessMemory(hProcess,base,&doshdr,sizeof(doshdr),&read) || read != sizeof(doshdr)
-    || doshdr.e_magic != IMAGE_DOS_SIGNATURE)
-    return 0;
-
-  if(!ReadProcessMemory(hProcess,base + doshdr.e_lfanew,&nthdr,sizeof(nthdr),&read) || read != sizeof(nthdr))
-    return 0;
-
-  if(nthdr.Signature != IMAGE_NT_SIGNATURE
-    || nthdr.FileHeader.Machine != IMAGE_FILE_MACHINE_I386
-    || nthdr.OptionalHeader.Magic != IMAGE_NT_OPTIONAL_HDR32_MAGIC
-    || !(nthdr.FileHeader.Characteristics & IMAGE_FILE_EXECUTABLE_IMAGE)
-    || !nthdr.OptionalHeader.AddressOfEntryPoint)
-    return 0;
-
-  // need to look at import directory: is it a .NET executable?
-  if(nthdr.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].Size)
-  {
-    DWORD va = nthdr.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT].VirtualAddress;
-
-    // check for import of mscoree.dll
-    IMAGE_IMPORT_DESCRIPTOR desc;
-    if(ReadProcessMemory(hProcess,base + va,&desc,sizeof(desc),&read) && read == sizeof(desc))
-    {
-      if(MatchesProcessString(hProcess,base + desc.Name,"mscoree.dll"))
-      {
-        // yes, .NET process - instrument thread start instead.
-        void *ptr = GetProcAddress(LoadLibrary("ntdll.dll"), "RtlUserThreadStart");
-        return ptr;
-      }
-    }
-  }
-
-  return (void*) (base + nthdr.OptionalHeader.AddressOfEntryPoint);
-}
-
-static void *DetermineEntryPoint(HANDLE hProcess)
-{
-  // go through the virtual address range of the target process and try to find the executable
-  // in there.
-
-  MEMORY_BASIC_INFORMATION mbi;
-  BYTE *current = (BYTE *) 0x10000; // first 64k are always reserved
-
-  while(VirtualQueryEx(hProcess,current,&mbi,sizeof(mbi)) > 0)
-  {
-    // we only care about commited non-guard pages
-    if(mbi.State == MEM_COMMIT && !(mbi.Protect & PAGE_GUARD))
-    {
-      // was an executable mapped starting here?
-      void *entry = GetEntryPoint(hProcess,mbi.BaseAddress);
-      if(entry)
-        return entry;
-    }
-
-    current += mbi.RegionSize;
-  }
-
-  return 0; // nothing found
-}
-
-static bool PrepareInstrumentation(HANDLE hProcess,BYTE *workArea,WCHAR *dllName,void *entryPointPtr)
-{
-  BYTE origCode[24];
-  struct bufferType
-  {
-    BYTE code[2048]; // code must be first field
-    WCHAR data[1024];
-  } buffer;
-  BYTE jumpCode[5];
-
-  DWORD offsWorkArea = (DWORD) workArea;
-  BYTE *code = buffer.code;
-  BYTE *loadLibrary = (BYTE *) GetProcAddress(GetModuleHandle(_T("kernel32.dll")),"LoadLibraryW");
-  BYTE *entryPoint = (BYTE *) entryPointPtr;
-
-  // Read original startup code
-  DWORD amount = 0;
-  memset(origCode,0xcc,sizeof(origCode));
-  if(!ReadProcessMemory(hProcess,entryPoint,origCode,sizeof(origCode),&amount)
-    && (amount == 0 || GetLastError() != 0x12b)) // 0x12b = request only partially completed
-    return false;
+  WCHAR name[2048]; // one page
+  void *workArea;
+  void *loadLibrary = GetProcAddress(GetModuleHandle(_T("kernel32.dll")),"LoadLibraryW");
 
   // Copy DLL name over
   int len = 0;
   while(dllName[len])
   {
-    buffer.data[len] = dllName[len];
-    if(++len == COUNTOF(buffer.data)) // DLL name is too long
+    name[len] = dllName[len];
+    if(++len == COUNTOF(name)) // DLL name is too long
       return false;
   }
 
-  buffer.data[len] = 0; // zero-terminate
+  name[len] = 0; // zero-terminate
 
-  // Generate Initialization hook
-  code = DetourGenPushad(code);
-  code = DetourGenPush(code,offsWorkArea + offsetof(bufferType,data));
-  code = DetourGenCall(code,loadLibrary,workArea + (code - buffer.code));
-  code = DetourGenPopad(code);
-
-  // Copy startup code
-  BYTE *sourcePtr = origCode;
-  DWORD relPos;
-  while((relPos = sourcePtr - origCode) < sizeof(jumpCode))
-  {
-    if(sourcePtr[0] == 0xe8 || sourcePtr[0] == 0xe9) // Yes, we can jump/call there too
-    {
-      if(sourcePtr[0] == 0xe8)
-      {
-        // turn a call into a push/jump sequence; this is necessary in case someone
-        // decides to do computations based on the return address in the stack frame
-        code = DetourGenPush(code,(UINT32) (entryPoint + relPos + 5));
-        *code++ = 0xe9; // rest of flow continues with a jmp near
-        sourcePtr++;
-      }
-      else // just copy the opcode
-        *code++ = *sourcePtr++;
-
-      // Copy target address, compensating for offset
-      *((DWORD *) code) = *((DWORD *) sourcePtr)
-        + entryPoint + relPos + 1             // add back original position
-        - (workArea + (code - buffer.code));  // subtract new position
-
-      code += 4;
-      sourcePtr += 4;
-    }
-    else if(sourcePtr[0] == 0xff && sourcePtr[1] == 0x25) // jmp [offset]
-    {
-      memcpy(code, sourcePtr, 6); // can just copy verbatim
-      
-      code += 6;
-      sourcePtr += 6;
-    }
-    else // not a jump/call, copy instruction
-    {
-      BYTE *oldPtr = sourcePtr;
-      sourcePtr = DetourCopyInstruction(code,sourcePtr,0);
-      code += sourcePtr - oldPtr;
-    }
-  }
-
-  // Jump to rest
-  code = DetourGenJmp(code,entryPoint + (sourcePtr - origCode),workArea + (code - buffer.code));
-
-  // And prepare jump to init hook from original entry point
-  DetourGenJmp(jumpCode,workArea,entryPoint);
-
-  // Finally, write everything into process memory
-  DWORD oldProtect;
-
-  return VirtualProtectEx(hProcess,workArea,sizeof(buffer),PAGE_EXECUTE_READWRITE,&oldProtect)
-    && WriteProcessMemory(hProcess,workArea,&buffer,sizeof(buffer),0)
-    && VirtualProtectEx(hProcess,entryPoint,sizeof(jumpCode),PAGE_EXECUTE_READWRITE,&oldProtect)
-    && WriteProcessMemory(hProcess,entryPoint,jumpCode,sizeof(jumpCode),0)
-    && FlushInstructionCache(hProcess,entryPoint,sizeof(jumpCode)); 
+  // Write DLL name into process memory and generate LoadLibraryW call via CreateRemoteThread
+  return (workArea = VirtualAllocEx(hProcess,0,4096,MEM_COMMIT,PAGE_READWRITE))
+    && WriteProcessMemory(hProcess,workArea,name,sizeof(name),0)
+    && CreateRemoteThread(hProcess,NULL,0,(LPTHREAD_START_ROUTINE) loadLibrary,workArea,0,0);
 }
 
 static void __cdecl WaitProcessThreadProc(void *arg)
@@ -270,31 +118,19 @@ static BOOL __stdcall Mine_CreateProcessW(LPCWSTR appName,LPWSTR cmdLine,LPSECUR
 
 static int FinishCreateInstrumentedProcess(LPPROCESS_INFORMATION pi,WCHAR *dllPath,DWORD flags)
 {
-  if(void *entryPoint = DetermineEntryPoint(pi->hProcess))
+  // inject our DLL into the target process
+  if(InjectDLL(pi->hProcess,dllPath))
   {
-    // get some memory in the target processes' space for us to work with
-    void *workMem = VirtualAllocEx(pi->hProcess,0,4096,MEM_COMMIT,PAGE_EXECUTE_READWRITE);
+    // we're done with our evil machinations, so let the process run
+    if(!(flags & CREATE_SUSPENDED))
+      ResumeThread(pi->hThread);
 
-    // do all the mean initialization faking code here
-    if(PrepareInstrumentation(pi->hProcess,(BYTE *) workMem,dllPath,entryPoint))
-    {
-      // we're done with our evil machinations, so let the process run
-      if(!(flags & CREATE_SUSPENDED))
-        ResumeThread(pi->hThread);
-
-      return ERR_OK;
-    }
-    else
-    {
-      TerminateProcess(pi->hProcess,0);
-      return ERR_INSTRUMENTATION_FAILED;
-    }
+    return ERR_OK;
   }
   else
   {
-    ResumeThread(pi->hThread);
     TerminateProcess(pi->hProcess,0);
-    return ERR_COULDNT_FIND_ENTRY_POINT;
+    return ERR_INSTRUMENTATION_FAILED;
   }
 }
 
