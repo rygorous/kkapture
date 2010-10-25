@@ -107,13 +107,13 @@ static void captureGLFrame()
 // newer wingdi.h versions don't declare this anymore
 extern "C" BOOL __stdcall wglSwapBuffers(HDC hdc);
 
-DETOUR_TRAMPOLINE(LONG __stdcall Real_ChangeDisplaySettings(LPDEVMODE lpDevMode,DWORD dwFlags), ChangeDisplaySettings);
-DETOUR_TRAMPOLINE(LONG __stdcall Real_ChangeDisplaySettingsEx(LPCTSTR lpszDeviceName,LPDEVMODE lpDevMode,HWND hwnd,DWORD dwflags,LPVOID lParam), ChangeDisplaySettingsEx);
-DETOUR_TRAMPOLINE(HGLRC __stdcall Real_wglCreateContext(HDC hdc), wglCreateContext);
-DETOUR_TRAMPOLINE(HGLRC __stdcall Real_wglCreateLayerContext(HDC hdc,int iLayerPlane), wglCreateLayerContext);
-DETOUR_TRAMPOLINE(BOOL __stdcall Real_wglMakeCurrent(HDC hdc,HGLRC hglrc), wglMakeCurrent);
-DETOUR_TRAMPOLINE(BOOL __stdcall Real_wglSwapBuffers(HDC hdc), wglSwapBuffers);
-DETOUR_TRAMPOLINE(BOOL __stdcall Real_wglSwapLayerBuffers(HDC hdc,UINT fuPlanes), wglSwapLayerBuffers);
+static LONG (__stdcall *Real_ChangeDisplaySettings)(LPDEVMODE lpDevMode,DWORD dwFlags) = ChangeDisplaySettingsA;
+static LONG (__stdcall *Real_ChangeDisplaySettingsEx)(LPCTSTR lpszDeviceName,LPDEVMODE lpDevMode,HWND hwnd,DWORD dwflags,LPVOID lParam) = ChangeDisplaySettingsExA;
+static HGLRC (__stdcall *Real_wglCreateContext)(HDC hdc) = wglCreateContext;
+static HGLRC (__stdcall *Real_wglCreateLayerContext)(HDC hdc,int iLayerPlane) = wglCreateLayerContext;
+static BOOL (__stdcall *Real_wglMakeCurrent)(HDC hdc,HGLRC hglrc) = wglMakeCurrent;
+static BOOL (__stdcall *Real_wglSwapBuffers)(HDC hdc) = wglSwapBuffers;
+static BOOL (__stdcall *Real_wglSwapLayerBuffers)(HDC hdc,UINT fuPlanes) = wglSwapLayerBuffers;
 
 BOOL __stdcall Mine_wglMakeCurrent(HDC hdc,HGLRC hglrc);
 
@@ -162,7 +162,7 @@ static HGLRC __stdcall Mine_wglCreateContext(HDC hdc)
   return result;
 }
 
-HGLRC __stdcall Mine_wglCreateLayerContext(HDC hdc,int iLayerPlane)
+static HGLRC __stdcall Mine_wglCreateLayerContext(HDC hdc,int iLayerPlane)
 {
   HGLRC result = Real_wglCreateLayerContext(hdc,iLayerPlane);
   if(result)
@@ -171,7 +171,7 @@ HGLRC __stdcall Mine_wglCreateLayerContext(HDC hdc,int iLayerPlane)
   return result;
 }
 
-BOOL __stdcall Mine_wglMakeCurrent(HDC hdc,HGLRC hglrc)
+static BOOL __stdcall Mine_wglMakeCurrent(HDC hdc,HGLRC hglrc)
 {
   BOOL result = Real_wglMakeCurrent(hdc,hglrc);
 
@@ -240,10 +240,10 @@ static BOOL __stdcall Mine_wglSwapLayerBuffers(HDC hdc,UINT fuPlanes)
 
 void initVideo_OpenGL()
 {
-  DetourFunctionWithTrampoline((PBYTE) Real_ChangeDisplaySettingsEx,(PBYTE) Mine_ChangeDisplaySettingsEx);
-  DetourFunctionWithTrampoline((PBYTE) Real_wglCreateContext,(PBYTE) Mine_wglCreateContext);
-  DetourFunctionWithTrampoline((PBYTE) Real_wglCreateLayerContext, (PBYTE) Mine_wglCreateLayerContext);
-  DetourFunctionWithTrampoline((PBYTE) Real_wglMakeCurrent, (PBYTE) Mine_wglMakeCurrent);
-  DetourFunctionWithTrampoline((PBYTE) Real_wglSwapBuffers,(PBYTE) Mine_wglSwapBuffers);
-  DetourFunctionWithTrampoline((PBYTE) Real_wglSwapLayerBuffers, (PBYTE) Mine_wglSwapLayerBuffers);
+  HookFunction(&Real_ChangeDisplaySettingsEx,Mine_ChangeDisplaySettingsEx);
+  HookFunction(&Real_wglCreateContext,Mine_wglCreateContext);
+  HookFunction(&Real_wglCreateLayerContext,Mine_wglCreateLayerContext);
+  HookFunction(&Real_wglMakeCurrent,Mine_wglMakeCurrent);
+  HookFunction(&Real_wglSwapBuffers,Mine_wglSwapBuffers);
+  HookFunction(&Real_wglSwapLayerBuffers,Mine_wglSwapLayerBuffers);
 }

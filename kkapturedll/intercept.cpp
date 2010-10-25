@@ -55,8 +55,8 @@ static void __cdecl WaitProcessThreadProc(void *arg)
   WaitForSingleObject((HANDLE) arg,INFINITE);
 }
 
-DETOUR_TRAMPOLINE(BOOL __stdcall Real_CreateProcessA(LPCSTR appName,LPSTR cmdLine,LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,LPVOID env,LPCSTR currentDir,LPSTARTUPINFOA startupInfo,LPPROCESS_INFORMATION processInfo), CreateProcessA);
-DETOUR_TRAMPOLINE(BOOL __stdcall Real_CreateProcessW(LPCWSTR appName,LPWSTR cmdLine,LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,LPVOID env,LPCWSTR currentDir,LPSTARTUPINFOW startupInfo,LPPROCESS_INFORMATION processInfo), CreateProcessW);
+static BOOL (__stdcall *Real_CreateProcessA)(LPCSTR appName,LPSTR cmdLine,LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,LPVOID env,LPCSTR currentDir,LPSTARTUPINFOA startupInfo,LPPROCESS_INFORMATION processInfo) = CreateProcessA;
+static BOOL (__stdcall *Real_CreateProcessW)(LPCWSTR appName,LPWSTR cmdLine,LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,LPVOID env,LPCWSTR currentDir,LPSTARTUPINFOW startupInfo,LPPROCESS_INFORMATION processInfo) = CreateProcessW;
 
 static BOOL __stdcall Mine_CreateProcessA(LPCSTR appName,LPSTR cmdLine,LPSECURITY_ATTRIBUTES processAttr,
   LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,LPVOID env,LPCSTR currentDir,
@@ -73,7 +73,7 @@ static BOOL __stdcall Mine_CreateProcessA(LPCSTR appName,LPSTR cmdLine,LPSECURIT
   }
 
   printLog("system: launching process \"%s\" with command line \"%s\"\n",appName,cmdLine);
-  int err = CreateInstrumentedProcessA(TRUE,appName,cmdLine,processAttr,threadAttr,TRUE,
+  int err = CreateInstrumentedProcessA(appName,cmdLine,processAttr,threadAttr,TRUE,
     flags,env,currentDir,startupInfo,pi);
 
   if(err == ERR_OK)
@@ -102,7 +102,7 @@ static BOOL __stdcall Mine_CreateProcessW(LPCWSTR appName,LPWSTR cmdLine,LPSECUR
   }
 
   printLog("system: launching process \"%S\" with command line \"%S\"\n",appName,cmdLine);
-  int err = CreateInstrumentedProcessW(TRUE,appName,cmdLine,processAttr,threadAttr,TRUE,
+  int err = CreateInstrumentedProcessW(appName,cmdLine,processAttr,threadAttr,TRUE,
     flags,env,currentDir,startupInfo,pi);
 
   if(err == ERR_OK)
@@ -134,44 +134,29 @@ static int FinishCreateInstrumentedProcess(LPPROCESS_INFORMATION pi,WCHAR *dllPa
   }
 }
 
-int CreateInstrumentedProcessA(BOOL newIntercept,LPCSTR appName,LPSTR cmdLine,
+int CreateInstrumentedProcessA(LPCSTR appName,LPSTR cmdLine,
   LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,
   LPVOID env,LPCSTR currentDir,LPSTARTUPINFOA startupInfo,LPPROCESS_INFORMATION pi)
 {
-  // actual process creation
-  if(!newIntercept)
-  {
-    // get dll path
-    TCHAR dllPath[_MAX_PATH];
-    GetModuleFileNameA((HMODULE) hModule,dllPath,_MAX_PATH);
+  // get dll path
+  WCHAR dllPath[_MAX_PATH];
+  GetModuleFileNameW((HMODULE) hModule,dllPath,_MAX_PATH);
 
-    if(DetourCreateProcessWithDllA(appName,cmdLine,processAttr,threadAttr,inheritHandles,flags,env,
-      currentDir,startupInfo,pi,dllPath,0))
-      return ERR_OK;
-    else
-      return ERR_COULDNT_EXECUTE;
+  // actual process creation
+  if(Real_CreateProcessA(appName,cmdLine,processAttr,threadAttr,inheritHandles,flags|CREATE_SUSPENDED,
+    env,currentDir,startupInfo,pi))
+  {
+    return FinishCreateInstrumentedProcess(pi,dllPath,flags);
   }
   else
   {
-    // get dll path
-    WCHAR dllPath[_MAX_PATH];
-    GetModuleFileNameW((HMODULE) hModule,dllPath,_MAX_PATH);
-
-    if(Real_CreateProcessA(appName,cmdLine,processAttr,threadAttr,inheritHandles,flags|CREATE_SUSPENDED,
-      env,currentDir,startupInfo,pi))
-    {
-      return FinishCreateInstrumentedProcess(pi,dllPath,flags);
-    }
-    else
-    {
-      if(pi) pi->hProcess = INVALID_HANDLE_VALUE;
-      return ERR_COULDNT_EXECUTE;
-    }
+    if(pi) pi->hProcess = INVALID_HANDLE_VALUE;
+    return ERR_COULDNT_EXECUTE;
   }
 }
 
 
-int CreateInstrumentedProcessW(BOOL newIntercept,LPCWSTR appName,LPWSTR cmdLine,
+int CreateInstrumentedProcessW(LPCWSTR appName,LPWSTR cmdLine,
   LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,
   LPVOID env,LPCWSTR currentDir,LPSTARTUPINFOW startupInfo,LPPROCESS_INFORMATION pi)
 {
@@ -180,31 +165,20 @@ int CreateInstrumentedProcessW(BOOL newIntercept,LPCWSTR appName,LPWSTR cmdLine,
   GetModuleFileNameW((HMODULE) hModule,dllPath,_MAX_PATH);
 
   // actual process creation
-  if(!newIntercept)
+  if(Real_CreateProcessW(appName,cmdLine,processAttr,threadAttr,inheritHandles,flags|CREATE_SUSPENDED,
+    env,currentDir,startupInfo,pi))
   {
-    if(DetourCreateProcessWithDllW(appName,cmdLine,processAttr,threadAttr,inheritHandles,flags,env,
-      currentDir,startupInfo,pi,dllPath,0))
-      return ERR_OK;
-    else
-      return ERR_COULDNT_EXECUTE;
+    return FinishCreateInstrumentedProcess(pi,dllPath,flags);
   }
   else
   {
-    if(Real_CreateProcessW(appName,cmdLine,processAttr,threadAttr,inheritHandles,flags|CREATE_SUSPENDED,
-      env,currentDir,startupInfo,pi))
-    {
-      return FinishCreateInstrumentedProcess(pi,dllPath,flags);
-    }
-    else
-    {
-      if(pi) pi->hProcess = INVALID_HANDLE_VALUE;
-      return ERR_COULDNT_EXECUTE;
-    }
+    if(pi) pi->hProcess = INVALID_HANDLE_VALUE;
+    return ERR_COULDNT_EXECUTE;
   }
 }
 
 void initProcessIntercept()
 {
-  DetourFunctionWithTrampoline((PBYTE) Real_CreateProcessA, (PBYTE) Mine_CreateProcessA);
-  DetourFunctionWithTrampoline((PBYTE) Real_CreateProcessW, (PBYTE) Mine_CreateProcessW);
+  HookFunction(&Real_CreateProcessA,Mine_CreateProcessA);
+  HookFunction(&Real_CreateProcessW,Mine_CreateProcessW);
 }

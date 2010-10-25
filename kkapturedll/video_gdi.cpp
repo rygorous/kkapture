@@ -134,22 +134,10 @@ static void captureSourceBits(HDC hdc,int xSrc,int ySrc,int xRes,int yRes)
 
 // trampolines
 
-DETOUR_TRAMPOLINE(int __stdcall Real_SetDIBitsToDevice(HDC hdc, 
-          int XDest, int YDest, DWORD dwWidth,  DWORD dwHeight,
-          int XSrc, int YSrc, UINT uStartScan, UINT cScanLines,
-          CONST VOID *lpvBits, CONST BITMAPINFO *lpbmi, UINT fuColorUse), SetDIBitsToDevice);
-DETOUR_TRAMPOLINE(int __stdcall Real_StretchDIBits(HDC hdc,
-          int XDest, int YDest, int nDestWidth, int nDestHeight,
-          int XSrc, int YSrc, int nSrcWidth, int nSrcHeight,
-          CONST VOID *lpvBits, CONST BITMAPINFO *lpbmi, UINT iUsage, DWORD dwRop), StretchDIBits);
-DETOUR_TRAMPOLINE(BOOL __stdcall Real_BitBlt(HDC hdcDest,
-          int XDest, int YDest, int nDestWidth, int nDestHeight,
-          HDC hdcSrc,
-          int XSrc, int YSrc, DWORD dwRop), BitBlt);
-DETOUR_TRAMPOLINE(BOOL __stdcall Real_StretchBlt(HDC hdcDest,
-          int XDest, int YDest, int nDestWidth, int nDestHeight,
-          HDC hdcSrc,
-          int XSrc, int YSrc, int nSrcWidth, int nSrcHeight,DWORD dwRop), StretchBlt);
+static int (__stdcall *Real_SetDIBitsToDevice)(HDC hdc, int XDest, int YDest, DWORD dwWidth,  DWORD dwHeight, int XSrc, int YSrc, UINT uStartScan, UINT cScanLines, CONST VOID *lpvBits, CONST BITMAPINFO *lpbmi, UINT fuColorUse) = SetDIBitsToDevice;
+static int (__stdcall *Real_StretchDIBits)(HDC hdc, int XDest, int YDest, int nDestWidth, int nDestHeight, int XSrc, int YSrc, int nSrcWidth, int nSrcHeight, CONST VOID *lpvBits, CONST BITMAPINFO *lpbmi, UINT iUsage, DWORD dwRop) = StretchDIBits;
+static BOOL (__stdcall *Real_BitBlt)(HDC hdcDest, int XDest, int YDest, int nDestWidth, int nDestHeight, HDC hdcSrc, int XSrc, int YSrc, DWORD dwRop) = BitBlt;
+static BOOL (__stdcall *Real_StretchBlt)(HDC hdcDest, int XDest, int YDest, int nDestWidth, int nDestHeight, HDC hdcSrc, int XSrc, int YSrc, int nSrcWidth, int nSrcHeight,DWORD dwRop) = StretchBlt;
 
 static int __stdcall Mine_SetDIBitsToDevice(HDC hdc, int xo, int yo, DWORD xres, DWORD yres, 
         int c, int d, UINT e, UINT f, CONST VOID *buffer, CONST BITMAPINFO *bmi, UINT flag)
@@ -199,9 +187,9 @@ void initVideo_GDI()
 {
   if(params.EnableGDICapture)
   {
-    DetourFunctionWithTrampoline((PBYTE) Real_SetDIBitsToDevice,(PBYTE) Mine_SetDIBitsToDevice);
-    DetourFunctionWithTrampoline((PBYTE) Real_StretchDIBits,(PBYTE) Mine_StretchDIBits);
-    DetourFunctionWithTrampoline((PBYTE) Real_BitBlt,(PBYTE) Mine_BitBlt);
-    DetourFunctionWithTrampoline((PBYTE) Real_StretchBlt,(PBYTE) Mine_StretchBlt);
+    Mhook_SetHook((void **) &Real_SetDIBitsToDevice,Mine_SetDIBitsToDevice);
+    Mhook_SetHook((void **) &Real_StretchDIBits,Mine_StretchDIBits);
+    Mhook_SetHook((void **) &Real_BitBlt,Mine_BitBlt);
+    Mhook_SetHook((void **) &Real_StretchBlt,Mine_StretchBlt);
   }
 }

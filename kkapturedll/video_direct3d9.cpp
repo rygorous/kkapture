@@ -28,19 +28,13 @@
 #include "d3d9.h"
 #pragma comment (lib,"d3d9.lib")
 
-DETOUR_TRAMPOLINE(IDirect3D9 * __stdcall Real_Direct3DCreate9(UINT SDKVersion), Direct3DCreate9);
+static IDirect3D9 * (__stdcall *Real_Direct3DCreate9)(UINT SDKVersion) = Direct3DCreate9;
 
-typedef HRESULT (__stdcall *PD3D9_CreateDevice)(IDirect3D9 *d3d,UINT a0,UINT a1,DWORD a2,DWORD a3,D3DPRESENT_PARAMETERS *a4,IDirect3DDevice9 **a5);
-typedef ULONG (__stdcall *PD3DDevice9_AddRef)(IDirect3DDevice9 *dev);
-typedef ULONG (__stdcall *PD3DDevice9_Release)(IDirect3DDevice9 *dev);
-typedef HRESULT (__stdcall *PD3DDevice9_Reset)(IDirect3DDevice9 *dev,D3DPRESENT_PARAMETERS *pp);
-typedef HRESULT (__stdcall *PD3DDevice9_Present)(IDirect3DDevice9 *dev,DWORD a0,DWORD a1,DWORD a2,DWORD a3);
-
-static PD3D9_CreateDevice Real_D3D9_CreateDevice = 0;
-static PD3DDevice9_AddRef Real_D3DDevice9_AddRef = 0;
-static PD3DDevice9_Release Real_D3DDevice9_Release = 0;
-static PD3DDevice9_Reset Real_D3DDevice9_Reset = 0;
-static PD3DDevice9_Present Real_D3DDevice9_Present = 0;
+static HRESULT (__stdcall *Real_D3D9_CreateDevice)(IDirect3D9 *d3d,UINT a0,UINT a1,DWORD a2,DWORD a3,D3DPRESENT_PARAMETERS *a4,IDirect3DDevice9 **a5) = 0;
+static ULONG (__stdcall *Real_D3DDevice9_AddRef)(IDirect3DDevice9 *dev) = 0;
+static ULONG (__stdcall *Real_D3DDevice9_Release)(IDirect3DDevice9 *dev) = 0;
+static HRESULT (__stdcall *Real_D3DDevice9_Reset)(IDirect3DDevice9 *dev,D3DPRESENT_PARAMETERS *pp) = 0;
+static HRESULT (__stdcall *Real_D3DDevice9_Present)(IDirect3DDevice9 *dev,DWORD a0,DWORD a1,DWORD a2,DWORD a3) = 0;
 
 static IDirect3DTexture9 *captureTex = 0;
 static IDirect3DSurface9 *captureSurf = 0;
@@ -262,17 +256,10 @@ static HRESULT __stdcall Mine_D3D9_CreateDevice(IDirect3D9 *d3d,UINT a0,UINT a1,
 
     deviceRefCount = 1;
 
-    if(!Real_D3DDevice9_AddRef)
-      Real_D3DDevice9_AddRef = (PD3DDevice9_AddRef) DetourCOM(dev,1,(PBYTE) Mine_D3DDevice9_AddRef);
-
-    if(!Real_D3DDevice9_Release)
-      Real_D3DDevice9_Release = (PD3DDevice9_Release) DetourCOM(dev,2,(PBYTE) Mine_D3DDevice9_Release);
-
-    if(!Real_D3DDevice9_Reset)
-      Real_D3DDevice9_Reset = (PD3DDevice9_Reset) DetourCOM(dev,16,(PBYTE) Mine_D3DDevice9_Reset);
-
-    if(!Real_D3DDevice9_Present)
-      Real_D3DDevice9_Present = (PD3DDevice9_Present) DetourCOM(dev,17,(PBYTE) Mine_D3DDevice9_Present);
+    HookCOMOnce(&Real_D3DDevice9_AddRef,dev,1,Mine_D3DDevice9_AddRef);
+    HookCOMOnce(&Real_D3DDevice9_Release,dev,2,Mine_D3DDevice9_Release);
+    HookCOMOnce(&Real_D3DDevice9_Reset,dev,16,Mine_D3DDevice9_Reset);
+    HookCOMOnce(&Real_D3DDevice9_Present,dev,17,Mine_D3DDevice9_Present);
 
     graphicsInitTiming();
   }
@@ -287,9 +274,7 @@ static IDirect3D9 * __stdcall Mine_Direct3DCreate9(UINT SDKVersion)
   if(d3d9)
   {
     printLog("video/d3d9: IDirect3D9 object created.\n");
-
-    if(!Real_D3D9_CreateDevice)
-      Real_D3D9_CreateDevice = (PD3D9_CreateDevice) DetourCOM(d3d9,16,(PBYTE) Mine_D3D9_CreateDevice);
+    HookCOMOnce(&Real_D3D9_CreateDevice,d3d9,16,Mine_D3D9_CreateDevice);
   }
 
   return d3d9;
@@ -298,5 +283,5 @@ static IDirect3D9 * __stdcall Mine_Direct3DCreate9(UINT SDKVersion)
 void initVideo_Direct3D9()
 {
   firstCreate = true;
-  DetourFunctionWithTrampoline((PBYTE) Real_Direct3DCreate9,(PBYTE) Mine_Direct3DCreate9);
+  HookFunction(&Real_Direct3DCreate9,Mine_Direct3DCreate9);
 }

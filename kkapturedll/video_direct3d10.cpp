@@ -27,13 +27,9 @@
 #include "dxgi.h"
 #include "d3d10.h"
 
-typedef HRESULT (__stdcall *PCREATEDXGIFACTORY)(REFIID riid,void **ppFactory);
-typedef HRESULT (__stdcall *PFACTORY_CREATESWAPCHAIN)(IUnknown *me,IUnknown *dev,DXGI_SWAP_CHAIN_DESC *desc,IDXGISwapChain **chain);
-typedef HRESULT (__stdcall *PSWAPCHAIN_PRESENT)(IDXGISwapChain *me,UINT SyncInterval,UINT Flags);
-
-static PCREATEDXGIFACTORY Real_CreateDXGIFactory = 0;
-static PFACTORY_CREATESWAPCHAIN Real_Factory_CreateSwapChain = 0;
-static PSWAPCHAIN_PRESENT Real_SwapChain_Present = 0;
+static HRESULT (__stdcall *Real_CreateDXGIFactory)(REFIID riid,void **ppFactory) = 0;
+static HRESULT (__stdcall *Real_Factory_CreateSwapChain)(IUnknown *me,IUnknown *dev,DXGI_SWAP_CHAIN_DESC *desc,IDXGISwapChain **chain) = 0;
+static HRESULT (__stdcall *Real_SwapChain_Present)(IDXGISwapChain *me,UINT SyncInterval,UINT Flags) = 0;
 
 static HRESULT __stdcall Mine_SwapChain_Present(IDXGISwapChain *me,UINT SyncInterval,UINT Flags)
 {
@@ -106,7 +102,7 @@ static HRESULT __stdcall Mine_Factory_CreateSwapChain(IUnknown *me,IUnknown *dev
   if(SUCCEEDED(hr))
   {
     printLog("video/d3d10: swap chain created.\n");
-    Real_SwapChain_Present = (PSWAPCHAIN_PRESENT) DetourCOM(*chain,8,(PBYTE) Mine_SwapChain_Present);
+    HookCOMOnce(&Real_SwapChain_Present,*chain,8,Mine_SwapChain_Present);
   }
 
   return hr;
@@ -116,10 +112,7 @@ static HRESULT __stdcall Mine_CreateDXGIFactory(REFIID riid,void **ppFactory)
 {
   HRESULT hr = Real_CreateDXGIFactory(riid,ppFactory);
   if(SUCCEEDED(hr) && riid == IID_IDXGIFactory)
-  {
-    IUnknown *factory = (IUnknown *) *ppFactory;
-    Real_Factory_CreateSwapChain = (PFACTORY_CREATESWAPCHAIN) DetourCOM(factory,10,(PBYTE) Mine_Factory_CreateSwapChain);
-  }
+    HookCOMOnce(&Real_Factory_CreateSwapChain,(IUnknown *) *ppFactory,10,Mine_Factory_CreateSwapChain);
 
   return hr;
 }
@@ -128,7 +121,5 @@ void initVideo_Direct3D10()
 {
   HMODULE dxgi = LoadLibraryA("dxgi.dll");
   if(dxgi)
-  {
-    Real_CreateDXGIFactory = (PCREATEDXGIFACTORY) DetourFunction((PBYTE) GetProcAddress(dxgi,"CreateDXGIFactory"),(PBYTE) Mine_CreateDXGIFactory);
-  }
+    HookDLLFunction(&Real_CreateDXGIFactory,dxgi,"CreateDXGIFactory",Mine_CreateDXGIFactory);
 }

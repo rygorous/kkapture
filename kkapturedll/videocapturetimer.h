@@ -25,7 +25,7 @@
 
 // This is just used for debugging and optimization purposes.
 
-extern DWORD __stdcall Real_timeGetTime();
+extern DWORD (__stdcall *Real_timeGetTime)();
 
 class VideoCaptureTimer
 {

@@ -30,8 +30,8 @@
 
 // DON'T LOOK, this is by far the messiest source in this project...
 
-DETOUR_TRAMPOLINE(HRESULT __stdcall Real_DirectDrawCreate(GUID *lpGUID,LPDIRECTDRAW *lplpDD,IUnknown *pUnkOuter), DirectDrawCreate);
-DETOUR_TRAMPOLINE(HRESULT __stdcall Real_DirectDrawCreateEx(GUID *lpGUID,LPVOID *lplpDD,REFIID iid,IUnknown *pUnkOuter), DirectDrawCreateEx);
+static HRESULT (__stdcall *Real_DirectDrawCreate)(GUID *lpGUID,LPDIRECTDRAW *lplpDD,IUnknown *pUnkOuter) = DirectDrawCreate;
+static HRESULT (__stdcall *Real_DirectDrawCreateEx)(GUID *lpGUID,LPVOID *lplpDD,REFIID iid,IUnknown *pUnkOuter) = DirectDrawCreateEx;
 
 typedef HRESULT (__stdcall *PQueryInterface)(IUnknown *dd,REFIID iid,LPVOID *ppObj);
 typedef HRESULT (__stdcall *PDDraw_CreateSurface)(IUnknown *dd,LPDDSURFACEDESC ddsd,LPDIRECTDRAWSURFACE *surf,IUnknown *pUnkOuter);
@@ -822,131 +822,40 @@ static HRESULT __stdcall Mine_DDrawSurface7_Unlock(IUnknown *me,void *ptr)
 
 static void PatchDDrawInterface(IUnknown *dd,int version)
 {
+#define DDRAW_HOOKS(ver) \
+  HookCOMOnce(&Real_DDraw ## ver ## QueryInterface, dd, 0, Mine_DDraw ## ver ## QueryInterface); \
+  HookCOMOnce(&Real_DDraw ## ver ## CreateSurface,  dd, 6, (PDDraw_CreateSurface) Mine_DDraw ## ver ## CreateSurface)
+
   switch(version)
   {
-  case 1:
-    if(!Real_DDraw_QueryInterface)
-      Real_DDraw_QueryInterface = (PQueryInterface) DetourCOM(dd,0,(PBYTE) Mine_DDraw_QueryInterface);
-
-    if(!Real_DDraw_CreateSurface)
-      Real_DDraw_CreateSurface = (PDDraw_CreateSurface) DetourCOM(dd,6,(PBYTE) Mine_DDraw_CreateSurface);
-    break;
-    
-  case 2:
-    if(!Real_DDraw2_QueryInterface)
-      Real_DDraw2_QueryInterface = (PQueryInterface) DetourCOM(dd,0,(PBYTE) Mine_DDraw2_QueryInterface);
-
-    if(!Real_DDraw2_CreateSurface)
-      Real_DDraw2_CreateSurface = (PDDraw_CreateSurface) DetourCOM(dd,6,(PBYTE) Mine_DDraw2_CreateSurface);
-    break;
-
-  case 4:
-    if(!Real_DDraw4_QueryInterface)
-      Real_DDraw4_QueryInterface = (PQueryInterface) DetourCOM(dd,0,(PBYTE) Mine_DDraw4_QueryInterface);
-
-    if(!Real_DDraw4_CreateSurface)
-      Real_DDraw4_CreateSurface = (PDDraw_CreateSurface) DetourCOM(dd,6,(PBYTE) Mine_DDraw4_CreateSurface);
-    break;
-
-  case 7:
-    if(!Real_DDraw7_QueryInterface)
-      Real_DDraw7_QueryInterface = (PQueryInterface) DetourCOM(dd,0,(PBYTE) Mine_DDraw7_QueryInterface);
-
-    if(!Real_DDraw7_CreateSurface)
-      Real_DDraw7_CreateSurface = (PDDraw_CreateSurface) DetourCOM(dd,6,(PBYTE) Mine_DDraw7_CreateSurface);
-    break;
+  case 1: DDRAW_HOOKS(_); break;
+  case 2: DDRAW_HOOKS(2_); break;
+  case 4: DDRAW_HOOKS(4_); break;
+  case 7: DDRAW_HOOKS(7_); break;
   }
+
+#undef DDRAW_HOOKS
 }
 
 static void PatchDDrawSurface(IUnknown *dd,int version)
 {
+#define DDRAW_SURFACE_HOOKS(ver) \
+  HookCOMOnce(&Real_DDrawSurface ## ver ## QueryInterface,  dd,  0, Mine_DDrawSurface ## ver ## QueryInterface); \
+  HookCOMOnce(&Real_DDrawSurface ## ver ## Blt,             dd,  5, Mine_DDrawSurface ## ver ## Blt); \
+  HookCOMOnce(&Real_DDrawSurface ## ver ## Flip,            dd, 11, Mine_DDrawSurface ## ver ## Flip); \
+  HookCOMOnce(&Real_DDrawSurface ## ver ## Lock,            dd, 25, Mine_DDrawSurface ## ver ## Lock); \
+  HookCOMOnce(&Real_DDrawSurface ## ver ## Unlock,          dd, 32, Mine_DDrawSurface ## ver ## Unlock)
+
   switch(version)
   {
-  case 1:
-    if(!Real_DDrawSurface_QueryInterface)
-      Real_DDrawSurface_QueryInterface = (PQueryInterface) DetourCOM(dd,0,(PBYTE) Mine_DDrawSurface_QueryInterface);
-
-    if(!Real_DDrawSurface_Blt)
-      Real_DDrawSurface_Blt = (PDDrawSurface_Blt) DetourCOM(dd,5,(PBYTE) Mine_DDrawSurface_Blt);
-
-    if(!Real_DDrawSurface_Flip)
-      Real_DDrawSurface_Flip = (PDDrawSurface_Flip) DetourCOM(dd,11,(PBYTE) Mine_DDrawSurface_Flip);
-
-    if(!Real_DDrawSurface_Lock)
-      Real_DDrawSurface_Lock = (PDDrawSurface_Lock) DetourCOM(dd,25,(PBYTE) Mine_DDrawSurface_Lock);
-
-    if(!Real_DDrawSurface_Unlock)
-      Real_DDrawSurface_Unlock = (PDDrawSurface_Unlock) DetourCOM(dd,32,(PBYTE) Mine_DDrawSurface_Unlock);
-    break;
-
-  case 2:
-    if(!Real_DDrawSurface2_QueryInterface)
-      Real_DDrawSurface2_QueryInterface = (PQueryInterface) DetourCOM(dd,0,(PBYTE) Mine_DDrawSurface2_QueryInterface);
-
-    if(!Real_DDrawSurface2_Blt)
-      Real_DDrawSurface2_Blt = (PDDrawSurface_Blt) DetourCOM(dd,5,(PBYTE) Mine_DDrawSurface2_Blt);
-
-    if(!Real_DDrawSurface2_Flip)
-      Real_DDrawSurface2_Flip = (PDDrawSurface_Flip) DetourCOM(dd,11,(PBYTE) Mine_DDrawSurface2_Flip);
-
-    if(!Real_DDrawSurface2_Lock)
-      Real_DDrawSurface2_Lock = (PDDrawSurface_Lock) DetourCOM(dd,25,(PBYTE) Mine_DDrawSurface2_Lock);
-
-    if(!Real_DDrawSurface2_Unlock)
-      Real_DDrawSurface2_Unlock = (PDDrawSurface_Unlock) DetourCOM(dd,32,(PBYTE) Mine_DDrawSurface2_Unlock);
-    break;
-
-  case 3:
-    if(!Real_DDrawSurface3_QueryInterface)
-      Real_DDrawSurface3_QueryInterface = (PQueryInterface) DetourCOM(dd,0,(PBYTE) Mine_DDrawSurface3_QueryInterface);
-
-    if(!Real_DDrawSurface3_Blt)
-      Real_DDrawSurface3_Blt = (PDDrawSurface_Blt) DetourCOM(dd,5,(PBYTE) Mine_DDrawSurface3_Blt);
-
-    if(!Real_DDrawSurface3_Flip)
-      Real_DDrawSurface3_Flip = (PDDrawSurface_Flip) DetourCOM(dd,11,(PBYTE) Mine_DDrawSurface3_Flip);
-
-    if(!Real_DDrawSurface3_Lock)
-      Real_DDrawSurface3_Lock = (PDDrawSurface_Lock) DetourCOM(dd,25,(PBYTE) Mine_DDrawSurface3_Lock);
-
-    if(!Real_DDrawSurface3_Unlock)
-      Real_DDrawSurface3_Unlock = (PDDrawSurface_Unlock) DetourCOM(dd,32,(PBYTE) Mine_DDrawSurface3_Unlock);
-    break;
-
-  case 4:
-    if(!Real_DDrawSurface4_QueryInterface)
-      Real_DDrawSurface4_QueryInterface = (PQueryInterface) DetourCOM(dd,0,(PBYTE) Mine_DDrawSurface4_QueryInterface);
-
-    if(!Real_DDrawSurface4_Blt)
-      Real_DDrawSurface4_Blt = (PDDrawSurface_Blt) DetourCOM(dd,5,(PBYTE) Mine_DDrawSurface4_Blt);
-
-    if(!Real_DDrawSurface4_Flip)
-      Real_DDrawSurface4_Flip = (PDDrawSurface_Flip) DetourCOM(dd,11,(PBYTE) Mine_DDrawSurface4_Flip);
-
-    if(!Real_DDrawSurface4_Lock)
-      Real_DDrawSurface4_Lock = (PDDrawSurface_Lock) DetourCOM(dd,25,(PBYTE) Mine_DDrawSurface4_Lock);
-
-    if(!Real_DDrawSurface4_Unlock)
-      Real_DDrawSurface4_Unlock = (PDDrawSurface_Unlock) DetourCOM(dd,32,(PBYTE) Mine_DDrawSurface4_Unlock);
-    break;
-
-  case 7:
-    if(!Real_DDrawSurface7_QueryInterface)
-      Real_DDrawSurface7_QueryInterface = (PQueryInterface) DetourCOM(dd,0,(PBYTE) Mine_DDrawSurface7_QueryInterface);
-
-    if(!Real_DDrawSurface7_Blt)
-      Real_DDrawSurface7_Blt = (PDDrawSurface_Blt) DetourCOM(dd,5,(PBYTE) Mine_DDrawSurface7_Blt);
-
-    if(!Real_DDrawSurface7_Flip)
-      Real_DDrawSurface7_Flip = (PDDrawSurface_Flip) DetourCOM(dd,11,(PBYTE) Mine_DDrawSurface7_Flip);
-
-    if(!Real_DDrawSurface7_Lock)
-      Real_DDrawSurface7_Lock = (PDDrawSurface_Lock) DetourCOM(dd,25,(PBYTE) Mine_DDrawSurface7_Lock);
-
-    if(!Real_DDrawSurface7_Unlock)
-      Real_DDrawSurface7_Unlock = (PDDrawSurface_Unlock) DetourCOM(dd,32,(PBYTE) Mine_DDrawSurface7_Unlock);
-    break;
+  case 1: DDRAW_SURFACE_HOOKS(_); break;
+  case 2: DDRAW_SURFACE_HOOKS(2_); break;
+  case 3: DDRAW_SURFACE_HOOKS(3_); break;
+  case 4: DDRAW_SURFACE_HOOKS(4_); break;
+  case 7: DDRAW_SURFACE_HOOKS(7_); break;
   }
+
+#undef DDRAW_SURFACE_HOOKS
 }
 
 HRESULT __stdcall Mine_DirectDrawCreate(GUID *lpGUID,LPDIRECTDRAW *lplpDD,IUnknown *pUnkOuter)
@@ -975,6 +884,6 @@ HRESULT __stdcall Mine_DirectDrawCreateEx(GUID *lpGUID,LPVOID *lplpDD,REFIID iid
 
 void initVideo_DirectDraw()
 {
-  DetourFunctionWithTrampoline((PBYTE) Real_DirectDrawCreate,(PBYTE) Mine_DirectDrawCreate);
-  DetourFunctionWithTrampoline((PBYTE) Real_DirectDrawCreateEx,(PBYTE) Mine_DirectDrawCreateEx);
+  HookFunction(&Real_DirectDrawCreate,Mine_DirectDrawCreate);
+  HookFunction(&Real_DirectDrawCreateEx,Mine_DirectDrawCreateEx);
 }

@@ -507,7 +507,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
     SetCurrentDirectory(exepath);
 
     // actually start the target
-    int err = CreateInstrumentedProcessA(Params.NewIntercept,ExeName,commandLine,0,0,TRUE,
+    int err = CreateInstrumentedProcessA(ExeName,commandLine,0,0,TRUE,
       CREATE_DEFAULT_ERROR_MODE,0,0,&si,&pi);
     switch(err)
     {

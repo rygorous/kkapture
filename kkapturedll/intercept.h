@@ -37,11 +37,11 @@ enum ErrorCodes
   ERR_COULDNT_EXECUTE
 };
 
-extern "C" DLLEXPORT int CreateInstrumentedProcessA(BOOL newIntercept,LPCSTR appName,LPSTR cmdLine,
+extern "C" DLLEXPORT int CreateInstrumentedProcessA(LPCSTR appName,LPSTR cmdLine,
   LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,
   LPVOID env,LPCSTR currentDir,LPSTARTUPINFO startupInfo,LPPROCESS_INFORMATION pi);
 
-extern "C" DLLEXPORT int CreateInstrumentedProcessW(BOOL newIntercept,LPCWSTR appName,LPWSTR cmdLine,
+extern "C" DLLEXPORT int CreateInstrumentedProcessW(LPCWSTR appName,LPWSTR cmdLine,
   LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,
   LPVOID env,LPCWSTR currentDir,LPSTARTUPINFOW startupInfo,LPPROCESS_INFORMATION pi);
 

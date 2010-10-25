@@ -849,12 +849,12 @@ public:
 };
 
 // trampolines
-DETOUR_TRAMPOLINE(HRESULT __stdcall Real_DirectSoundCreate(LPCGUID lpcGuidDevice,LPDIRECTSOUND *ppDS,LPUNKNOWN pUnkOuter), DirectSoundCreate);
-DETOUR_TRAMPOLINE(HRESULT __stdcall Real_DirectSoundCreate8(LPCGUID lpcGuidDevice,LPDIRECTSOUND8 *ppDS8,LPUNKNOWN pUnkOuter), DirectSoundCreate8);
+static HRESULT (__stdcall *Real_DirectSoundCreate)(LPCGUID lpcGuidDevice,LPDIRECTSOUND *ppDS,LPUNKNOWN pUnkOuter) = DirectSoundCreate;
+static HRESULT (__stdcall *Real_DirectSoundCreate8)(LPCGUID lpcGuidDevice,LPDIRECTSOUND8 *ppDS8,LPUNKNOWN pUnkOuter) = DirectSoundCreate8;
 
-DETOUR_TRAMPOLINE(HRESULT __stdcall Real_CoCreateInstance(REFCLSID rclsid,LPUNKNOWN pUnkOuter,DWORD dwClsContext,REFIID riid,LPVOID *ppv), CoCreateInstance);
+static HRESULT (__stdcall *Real_CoCreateInstance)(REFCLSID rclsid,LPUNKNOWN pUnkOuter,DWORD dwClsContext,REFIID riid,LPVOID *ppv) = CoCreateInstance;
 
-HRESULT __stdcall Mine_DirectSoundCreate(LPCGUID lpcGuidDevice,LPDIRECTSOUND8 *ppDS8,LPUNKNOWN pUnkOuter)
+HRESULT __stdcall Mine_DirectSoundCreate(LPCGUID lpcGuidDevice,LPDIRECTSOUND *ppDS8,LPUNKNOWN pUnkOuter)
 {
   printLog("sound: emulating DirectSound\n");
   *ppDS8 = new MyDirectSound8;
@@ -1226,18 +1226,18 @@ public:
   }
 };
 
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutOpen(LPHWAVEOUT phwo,UINT uDeviceID,LPCWAVEFORMATEX pwfx,DWORD_PTR dwCallback,DWORD_PTR dwInstance,DWORD fdwOpen), waveOutOpen);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutClose(HWAVEOUT hwo), waveOutClose);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutPrepareHeader(HWAVEOUT hwo,LPWAVEHDR pwh,UINT cbwh), waveOutPrepareHeader);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutUnprepareHeader(HWAVEOUT hwo,LPWAVEHDR pwh,UINT cbwh), waveOutUnprepareHeader);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutWrite(HWAVEOUT hwo,LPWAVEHDR pwh,UINT cbwh), waveOutWrite);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutPause(HWAVEOUT hwo), waveOutPause);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutRestart(HWAVEOUT hwo), waveOutRestart);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutReset(HWAVEOUT hwo), waveOutReset);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutMessage(HWAVEOUT hwo,UINT uMsg,DWORD_PTR dw1,DWORD_PTR dw2), waveOutMessage);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutGetPosition(HWAVEOUT hwo,LPMMTIME pmmt,UINT cbmmt), waveOutGetPosition);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutGetDevCaps(UINT_PTR uDeviceId,LPWAVEOUTCAPS pwo,UINT cbwoc), waveOutGetDevCaps);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_waveOutGetNumDevs(), waveOutGetNumDevs);
+static MMRESULT (__stdcall *Real_waveOutOpen)(LPHWAVEOUT phwo,UINT uDeviceID,LPCWAVEFORMATEX pwfx,DWORD_PTR dwCallback,DWORD_PTR dwInstance,DWORD fdwOpen) = waveOutOpen;
+static MMRESULT (__stdcall *Real_waveOutClose)(HWAVEOUT hwo) = waveOutClose;
+static MMRESULT (__stdcall *Real_waveOutPrepareHeader)(HWAVEOUT hwo,LPWAVEHDR pwh,UINT cbwh) = waveOutPrepareHeader;
+static MMRESULT (__stdcall *Real_waveOutUnprepareHeader)(HWAVEOUT hwo,LPWAVEHDR pwh,UINT cbwh) = waveOutUnprepareHeader;
+static MMRESULT (__stdcall *Real_waveOutWrite)(HWAVEOUT hwo,LPWAVEHDR pwh,UINT cbwh) = waveOutWrite;
+static MMRESULT (__stdcall *Real_waveOutPause)(HWAVEOUT hwo) = waveOutPause;
+static MMRESULT (__stdcall *Real_waveOutRestart)(HWAVEOUT hwo) = waveOutRestart;
+static MMRESULT (__stdcall *Real_waveOutReset)(HWAVEOUT hwo) = waveOutReset;
+static MMRESULT (__stdcall *Real_waveOutMessage)(HWAVEOUT hwo,UINT uMsg,DWORD_PTR dw1,DWORD_PTR dw2) = waveOutMessage;
+static MMRESULT (__stdcall *Real_waveOutGetPosition)(HWAVEOUT hwo,LPMMTIME pmmt,UINT cbmmt) = waveOutGetPosition;
+static MMRESULT (__stdcall *Real_waveOutGetDevCaps)(UINT_PTR uDeviceId,LPWAVEOUTCAPS pwo,UINT cbwoc) = waveOutGetDevCaps;
+static MMRESULT (__stdcall *Real_waveOutGetNumDevs)() = waveOutGetNumDevs;
 
 static WaveOutImpl *waveOutLast = 0;
 
@@ -1409,11 +1409,8 @@ struct BASS_INFO
   DWORD freq;       // current output rate (Vista/OSX only)
 };
 
-typedef BOOL (__stdcall *PBASS_INIT)(int device,DWORD freq,DWORD flags,HWND win,GUID *clsid);
-typedef BOOL (__stdcall *PBASS_GETINFO)(BASS_INFO *info);
-
-static PBASS_INIT Real_BASS_Init = 0;
-static PBASS_GETINFO Real_BASS_GetInfo = 0;
+static BOOL (__stdcall *Real_BASS_Init)(int device,DWORD freq,DWORD flags,HWND win,GUID *clsid) = 0;
+static BOOL (__stdcall *Real_BASS_GetInfo)(BASS_INFO *info) = 0;
 
 static BOOL __stdcall Mine_BASS_Init(int device,DWORD freq,DWORD flags,HWND win,GUID *clsid)
 {
@@ -1431,37 +1428,23 @@ static BOOL __stdcall Mine_BASS_GetInfo(BASS_INFO *info)
 static void initSoundsysBASS()
 {
   HMODULE bassDll = LoadLibraryA("bass.dll");
-  if(bassDll)
+  if(bassDll &&
+    HookDLLFunction(&Real_BASS_Init,bassDll,"BASS_Init",Mine_BASS_Init) &&
+    HookDLLFunction(&Real_BASS_GetInfo,bassDll,"BASS_GetInfo",Mine_BASS_GetInfo))
   {
-    PBASS_INIT init = (PBASS_INIT) GetProcAddress(bassDll,"BASS_Init");
-    PBASS_GETINFO getinfo = (PBASS_GETINFO) GetProcAddress(bassDll,"BASS_GetInfo");
-
-    if(init && getinfo)
-    {
-      printLog("sound/bass: bass.dll found, BASS support enabled.\n");
-      Real_BASS_Init = (PBASS_INIT) DetourFunction((PBYTE) init,(PBYTE) Mine_BASS_Init);
-      Real_BASS_GetInfo = (PBASS_GETINFO) DetourFunction((PBYTE) getinfo,(PBYTE) Mine_BASS_GetInfo);
-    }
+    printLog("sound/bass: bass.dll found, BASS support enabled.\n");
   }
 }
 
 // ---- FMOD 3.xx
 
-typedef int (__stdcall *PFSOUND_STREAM_PLAY)(int channel,void *stream);
-typedef int (__stdcall *PFSOUND_STREAM_PLAYEX)(int channel,void *stream,void *dspunit,signed char paused);
-typedef signed char (__stdcall *PFSOUND_STREAM_STOP)(void *stream);
-typedef int (__stdcall *PFSOUND_STREAM_GETTIME)(void *stream);
-typedef int (__stdcall *PFSOUND_PLAYSOUND)(int channel,void *sample);
-typedef int (__stdcall *PFSOUND_GETFREQUENCY)(int channel);
-typedef unsigned int (__stdcall *PFSOUND_GETCURRENTPOSITION)(int channel);
-
-static PFSOUND_STREAM_PLAY Real_FSOUND_Stream_Play = 0;
-static PFSOUND_STREAM_PLAYEX Real_FSOUND_Stream_PlayEx = 0;
-static PFSOUND_STREAM_STOP Real_FSOUND_Stream_Stop = 0;
-static PFSOUND_STREAM_GETTIME Real_FSOUND_Stream_GetTime = 0;
-static PFSOUND_PLAYSOUND Real_FSOUND_PlaySound = 0;
-static PFSOUND_GETFREQUENCY Real_FSOUND_GetFrequency = 0;
-static PFSOUND_GETCURRENTPOSITION Real_FSOUND_GetCurrentPosition = 0;
+static int (__stdcall *Real_FSOUND_Stream_Play)(int channel,void *stream);
+static int (__stdcall *Real_FSOUND_Stream_PlayEx)(int channel,void *stream,void *dspunit,signed char paused);
+static signed char (__stdcall *Real_FSOUND_Stream_Stop)(void *stream);
+static int (__stdcall *Real_FSOUND_Stream_GetTime)(void *stream);
+static int (__stdcall *Real_FSOUND_PlaySound)(int channel,void *sample);
+static int (__stdcall *Real_FSOUND_GetFrequency)(int channel);
+static unsigned int (__stdcall *Real_FSOUND_GetCurrentPosition)(int channel);
 
 static void *FMODStart = 0, *FMODEnd = 0;
 
@@ -1596,30 +1579,24 @@ static void initSoundsysFMOD3()
       FMODEnd = (void*) ((BYTE*) moduleInfo.lpBaseOfDll + moduleInfo.SizeOfImage);
 
       printLog("sound/FMOD3: fmod.dll found, FMOD support enabled.\n");
-      Real_FSOUND_Stream_Play = (PFSOUND_STREAM_PLAY) DetourFunction((PBYTE) GetProcAddress(fmodDll,"_FSOUND_Stream_Play@8"),(PBYTE) Mine_FSOUND_Stream_Play);
-      Real_FSOUND_Stream_PlayEx = (PFSOUND_STREAM_PLAYEX) DetourFunction((PBYTE) GetProcAddress(fmodDll,"_FSOUND_Stream_PlayEx@16"),(PBYTE) Mine_FSOUND_Stream_PlayEx);
-      Real_FSOUND_Stream_Stop = (PFSOUND_STREAM_STOP) DetourFunction((PBYTE) GetProcAddress(fmodDll,"_FSOUND_Stream_Stop@4"),(PBYTE) Mine_FSOUND_Stream_Stop);
-      Real_FSOUND_Stream_GetTime = (PFSOUND_STREAM_GETTIME) DetourFunction((PBYTE) GetProcAddress(fmodDll,"_FSOUND_Stream_GetTime@4"),(PBYTE) Mine_FSOUND_Stream_GetTime);
-      Real_FSOUND_PlaySound = (PFSOUND_PLAYSOUND) DetourFunction((PBYTE) GetProcAddress(fmodDll,"_FSOUND_PlaySound@8"),(PBYTE) Mine_FSOUND_PlaySound);
-      Real_FSOUND_GetFrequency = (PFSOUND_GETFREQUENCY) GetProcAddress(fmodDll,"_FSOUND_GetFrequency@4");
-      Real_FSOUND_GetCurrentPosition = (PFSOUND_GETCURRENTPOSITION) DetourFunction((PBYTE) GetProcAddress(fmodDll,"_FSOUND_GetCurrentPosition@4"),(PBYTE) Mine_FSOUND_GetCurrentPosition);
+      HookDLLFunction(&Real_FSOUND_Stream_Play,fmodDll,"_FSOUND_Stream_Play@8",Mine_FSOUND_Stream_Play);
+      HookDLLFunction(&Real_FSOUND_Stream_PlayEx,fmodDll,"_FSOUND_Stream_PlayEx@16",Mine_FSOUND_Stream_PlayEx);
+      HookDLLFunction(&Real_FSOUND_Stream_Stop,fmodDll,"_FSOUND_Stream_Stop@4",Mine_FSOUND_Stream_Stop);
+      HookDLLFunction(&Real_FSOUND_Stream_GetTime,fmodDll,"_FSOUND_Stream_GetTime@4",Mine_FSOUND_Stream_GetTime);
+      HookDLLFunction(&Real_FSOUND_PlaySound,fmodDll,"_FSOUND_PlaySound@8",Mine_FSOUND_PlaySound);
+      GetDLLFunction(&Real_FSOUND_GetFrequency,fmodDll,"_FSOUND_GetFrequency@4");
+      HookDLLFunction(&Real_FSOUND_GetCurrentPosition,fmodDll,"_FSOUND_GetCurrentPosition@4",Mine_FSOUND_GetCurrentPosition);
     }
   }
 }
 
 // ---- FMODEx 4.xx
 
-typedef int (__stdcall *PSYSTEM_INIT)(void *sys,int maxchan,int flags,void *extradriverdata);
-typedef int (__stdcall *PSYSTEM_SETOUTPUT)(void *sys,int output);
-typedef int (__stdcall *PSYSTEM_PLAYSOUND)(void *sys,int index,void *sound,bool paused,void **channel);
-typedef int (__stdcall *PCHANNEL_GETFREQUENCY)(void *chan,float *freq);
-typedef int (__stdcall *PCHANNEL_GETPOSITION)(void *chan,unsigned *position,int posType);
-
-static PSYSTEM_INIT Real_System_init;
-static PSYSTEM_SETOUTPUT Real_System_setOutput;
-static PSYSTEM_PLAYSOUND Real_System_playSound;
-static PCHANNEL_GETFREQUENCY Real_Channel_getFrequency;
-static PCHANNEL_GETPOSITION Real_Channel_getPosition;
+static int (__stdcall *Real_System_init)(void *sys,int maxchan,int flags,void *extradriverdata);
+static int (__stdcall *Real_System_setOutput)(void *sys,int output);
+static int (__stdcall *Real_System_playSound)(void *sys,int index,void *sound,bool paused,void **channel);
+static int (__stdcall *Real_Channel_getFrequency)(void *chan,float *freq);
+static int (__stdcall *Real_Channel_getPosition)(void *chan,unsigned *position,int posType);
 
 static void *FMODExStart = 0, *FMODExEnd = 0;
 
@@ -1722,11 +1699,17 @@ static void initSoundsysFMODEx()
 
       printLog("sound/fmodex: fmodex.dll found, FMODEx support enabled.\n");
 
-      Real_System_init = (PSYSTEM_INIT) DetourFunction((PBYTE) GetProcAddress(fmodDll,"?init@System@FMOD@@QAG?AW4FMOD_RESULT@@HIPAX@Z"),(PBYTE) Mine_System_init);
-      Real_System_setOutput = (PSYSTEM_SETOUTPUT) GetProcAddress(fmodDll,"?setOutput@System@FMOD@@QAG?AW4FMOD_RESULT@@W4FMOD_OUTPUTTYPE@@@Z");
-      Real_System_playSound = (PSYSTEM_PLAYSOUND) DetourFunction((PBYTE) GetProcAddress(fmodDll,"?playSound@System@FMOD@@QAG?AW4FMOD_RESULT@@W4FMOD_CHANNELINDEX@@PAVSound@2@_NPAPAVChannel@2@@Z"),(PBYTE) Mine_System_playSound);
-      Real_Channel_getFrequency = (PCHANNEL_GETFREQUENCY) GetProcAddress(fmodDll,"?getFrequency@Channel@FMOD@@QAG?AW4FMOD_RESULT@@PAM@Z");
-      Real_Channel_getPosition = (PCHANNEL_GETPOSITION) DetourFunction((PBYTE) GetProcAddress(fmodDll,"?getPosition@Channel@FMOD@@QAG?AW4FMOD_RESULT@@PAII@Z"),(PBYTE) Mine_Channel_getPosition);
+      HookDLLFunction(&Real_System_init,fmodDll,"?init@System@FMOD@@QAG?AW4FMOD_RESULT@@HIPAX@Z",Mine_System_init);
+      GetDLLFunction(&Real_System_setOutput,fmodDll,"?setOutput@System@FMOD@@QAG?AW4FMOD_RESULT@@W4FMOD_OUTPUTTYPE@@@Z");
+      HookDLLFunction(&Real_System_playSound,fmodDll,"?playSound@System@FMOD@@QAG?AW4FMOD_RESULT@@W4FMOD_CHANNELINDEX@@PAVSound@2@_NPAPAVChannel@2@@Z",Mine_System_playSound);
+      GetDLLFunction(&Real_Channel_getFrequency,fmodDll,"?getFrequency@Channel@FMOD@@QAG?AW4FMOD_RESULT@@PAM@Z");
+      HookDLLFunction(&Real_Channel_getPosition,fmodDll,"?getPosition@Channel@FMOD@@QAG?AW4FMOD_RESULT@@PAII@Z",Mine_Channel_getPosition);
+
+      //Real_System_init = (PSYSTEM_INIT) DetourFunction((PBYTE) GetProcAddress(fmodDll,),(PBYTE) Mine_System_init);
+      //Real_System_setOutput = (PSYSTEM_SETOUTPUT) GetProcAddress(fmodDll,"?setOutput@System@FMOD@@QAG?AW4FMOD_RESULT@@W4FMOD_OUTPUTTYPE@@@Z");
+      //Real_System_playSound = (PSYSTEM_PLAYSOUND) DetourFunction((PBYTE) GetProcAddress(fmodDll,"?playSound@System@FMOD@@QAG?AW4FMOD_RESULT@@W4FMOD_CHANNELINDEX@@PAVSound@2@_NPAPAVChannel@2@@Z"),(PBYTE) Mine_System_playSound);
+      //Real_Channel_getFrequency = (PCHANNEL_GETFREQUENCY) GetProcAddress(fmodDll,"?getFrequency@Channel@FMOD@@QAG?AW4FMOD_RESULT@@PAM@Z");
+      //Real_Channel_getPosition = (PCHANNEL_GETPOSITION) DetourFunction((PBYTE) GetProcAddress(fmodDll,"?getPosition@Channel@FMOD@@QAG?AW4FMOD_RESULT@@PAII@Z"),(PBYTE) Mine_Channel_getPosition);
     }
   }
 }
@@ -1735,23 +1718,23 @@ static void initSoundsysFMODEx()
 
 void initSound()
 {
-  DetourFunctionWithTrampoline((PBYTE) Real_DirectSoundCreate,(PBYTE) Mine_DirectSoundCreate);
-  DetourFunctionWithTrampoline((PBYTE) Real_DirectSoundCreate8,(PBYTE) Mine_DirectSoundCreate8);
+  HookFunction(&Real_DirectSoundCreate,Mine_DirectSoundCreate);
+  HookFunction(&Real_DirectSoundCreate8,Mine_DirectSoundCreate8);
 
-  DetourFunctionWithTrampoline((PBYTE) Real_CoCreateInstance,(PBYTE) Mine_CoCreateInstance);
+  HookFunction(&Real_CoCreateInstance,Mine_CoCreateInstance);
 
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutOpen,(PBYTE) Mine_waveOutOpen);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutClose,(PBYTE) Mine_waveOutClose);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutPrepareHeader,(PBYTE) Mine_waveOutPrepareHeader);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutUnprepareHeader,(PBYTE) Mine_waveOutUnprepareHeader);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutWrite,(PBYTE) Mine_waveOutWrite);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutPause,(PBYTE) Mine_waveOutPause);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutReset,(PBYTE) Mine_waveOutReset);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutRestart,(PBYTE) Mine_waveOutRestart);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutMessage,(PBYTE) Mine_waveOutMessage);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutGetPosition,(PBYTE) Mine_waveOutGetPosition);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutGetDevCaps, (PBYTE) Mine_waveOutGetDevCaps);
-  DetourFunctionWithTrampoline((PBYTE) Real_waveOutGetNumDevs, (PBYTE) Mine_waveOutGetNumDevs);
+  HookFunction(&Real_waveOutOpen,Mine_waveOutOpen);
+  HookFunction(&Real_waveOutClose,Mine_waveOutClose);
+  HookFunction(&Real_waveOutPrepareHeader,Mine_waveOutPrepareHeader);
+  HookFunction(&Real_waveOutUnprepareHeader,Mine_waveOutUnprepareHeader);
+  HookFunction(&Real_waveOutWrite,Mine_waveOutWrite);
+  HookFunction(&Real_waveOutPause,Mine_waveOutPause);
+  HookFunction(&Real_waveOutReset,Mine_waveOutReset);
+  HookFunction(&Real_waveOutRestart,Mine_waveOutRestart);
+  HookFunction(&Real_waveOutMessage,Mine_waveOutMessage);
+  HookFunction(&Real_waveOutGetPosition,Mine_waveOutGetPosition);
+  HookFunction(&Real_waveOutGetDevCaps, Mine_waveOutGetDevCaps);
+  HookFunction(&Real_waveOutGetNumDevs, Mine_waveOutGetNumDevs);
 
   if(params.SoundsysInterception)
   {

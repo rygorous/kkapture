@@ -27,8 +27,7 @@
 #include <hash_map>
 
 #include <windows.h>
-#define DETOURS_INTERNAL
-#include "detours.h"
+#include "mhook-lib/mhook.h"
 
 #include <vfw.h>
 

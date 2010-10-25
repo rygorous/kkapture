@@ -42,20 +42,20 @@ static volatile LONG resyncCounter = 0;
 static volatile LONG waitCounter = 0;
 
 // trampolines
-DETOUR_TRAMPOLINE(BOOL __stdcall Real_QueryPerformanceFrequency(LARGE_INTEGER *lpFrequency), QueryPerformanceFrequency);
-DETOUR_TRAMPOLINE(BOOL __stdcall Real_QueryPerformanceCounter(LARGE_INTEGER *lpPerformaceCount), QueryPerformanceCounter);
-DETOUR_TRAMPOLINE(DWORD __stdcall Real_GetTickCount(), GetTickCount);
-DETOUR_TRAMPOLINE(DWORD __stdcall Real_timeGetTime(), timeGetTime);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_timeGetSystemTime(MMTIME *pmmt,UINT cbmmt), timeGetSystemTime);
-DETOUR_TRAMPOLINE(VOID __stdcall Real_Sleep(DWORD dwMilliseconds), Sleep);
-DETOUR_TRAMPOLINE(DWORD __stdcall Real_WaitForSingleObject(HANDLE hHandle,DWORD dwMilliseconds), WaitForSingleObject);
-DETOUR_TRAMPOLINE(DWORD __stdcall Real_WaitForMultipleObjects(DWORD nCount,CONST HANDLE *lpHandles,BOOL bWaitAll,DWORD dwMilliseconds), WaitForMultipleObjects);
-DETOUR_TRAMPOLINE(DWORD __stdcall Real_MsgWaitForMultipleObjects(DWORD nCount,CONST HANDLE *lpHandles,BOOL bWaitAll,DWORD dwMilliseconds,DWORD dwWakeMask), MsgWaitForMultipleObjects);
-DETOUR_TRAMPOLINE(void __stdcall Real_GetSystemTimeAsFileTime(FILETIME *time), GetSystemTimeAsFileTime);
-DETOUR_TRAMPOLINE(void __stdcall Real_GetSystemTime(SYSTEMTIME *time), GetSystemTime);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_timeSetEvent(UINT uDelay,UINT uResolution,LPTIMECALLBACK fptc,DWORD_PTR dwUser,UINT fuEvent), timeSetEvent);
-DETOUR_TRAMPOLINE(MMRESULT __stdcall Real_timeKillEvent(UINT uTimerID), timeKillEvent);
-DETOUR_TRAMPOLINE(UINT_PTR __stdcall Real_SetTimer(HWND hWnd,UINT_PTR uIDEvent,UINT uElapse,TIMERPROC lpTimerFunc), SetTimer);
+static BOOL (__stdcall *Real_QueryPerformanceFrequency)(LARGE_INTEGER *lpFrequency) = QueryPerformanceFrequency;
+static BOOL (__stdcall *Real_QueryPerformanceCounter)(LARGE_INTEGER *lpPerformaceCount) = QueryPerformanceCounter;
+static DWORD (__stdcall *Real_GetTickCount)() = GetTickCount;
+static DWORD (__stdcall *Real_timeGetTime)() = timeGetTime;
+static MMRESULT (__stdcall *Real_timeGetSystemTime)(MMTIME *pmmt,UINT cbmmt) = timeGetSystemTime;
+VOID (__stdcall *Real_Sleep)(DWORD dwMilliseconds) = Sleep;
+DWORD (__stdcall *Real_WaitForSingleObject)(HANDLE hHandle,DWORD dwMilliseconds) = WaitForSingleObject;
+static DWORD (__stdcall *Real_WaitForMultipleObjects)(DWORD nCount,CONST HANDLE *lpHandles,BOOL bWaitAll,DWORD dwMilliseconds) = WaitForMultipleObjects;
+static DWORD (__stdcall *Real_MsgWaitForMultipleObjects)(DWORD nCount,CONST HANDLE *lpHandles,BOOL bWaitAll,DWORD dwMilliseconds,DWORD dwWakeMask) = MsgWaitForMultipleObjects;
+static void (__stdcall *Real_GetSystemTimeAsFileTime)(FILETIME *time) = GetSystemTimeAsFileTime;
+static void (__stdcall *Real_GetSystemTime)(SYSTEMTIME *time) = GetSystemTime;
+static MMRESULT (__stdcall *Real_timeSetEvent)(UINT uDelay,UINT uResolution,LPTIMECALLBACK fptc,DWORD_PTR dwUser,UINT fuEvent) = timeSetEvent;
+static MMRESULT (__stdcall *Real_timeKillEvent)(UINT uTimerID) = timeKillEvent;
+static UINT_PTR (__stdcall *Real_SetTimer)(HWND hWnd,UINT_PTR uIDEvent,UINT uElapse,TIMERPROC lpTimerFunc) = SetTimer;
 
 // if timer functions are called frequently in a single frame, assume the app is waiting for the
 // current time to change and advance it. this is the threshold for "frequent" calls.
@@ -429,19 +429,19 @@ void initTiming(bool interceptAnything)
 
   if(interceptAnything)
   {
-    DetourFunctionWithTrampoline((PBYTE) Real_QueryPerformanceFrequency, (PBYTE) Mine_QueryPerformanceFrequency);
-    DetourFunctionWithTrampoline((PBYTE) Real_QueryPerformanceCounter, (PBYTE) Mine_QueryPerformanceCounter);
-    DetourFunctionWithTrampoline((PBYTE) Real_GetTickCount, (PBYTE) Mine_GetTickCount);
-    DetourFunctionWithTrampoline((PBYTE) Real_timeGetTime, (PBYTE) Mine_timeGetTime);
-    DetourFunctionWithTrampoline((PBYTE) Real_Sleep, (PBYTE) Mine_Sleep);
-    DetourFunctionWithTrampoline((PBYTE) Real_WaitForSingleObject, (PBYTE) Mine_WaitForSingleObject);
-    DetourFunctionWithTrampoline((PBYTE) Real_WaitForMultipleObjects, (PBYTE) Mine_WaitForMultipleObjects);
-    DetourFunctionWithTrampoline((PBYTE) Real_MsgWaitForMultipleObjects, (PBYTE) Mine_MsgWaitForMultipleObjects);
-    DetourFunctionWithTrampoline((PBYTE) Real_GetSystemTimeAsFileTime, (PBYTE) Mine_GetSystemTimeAsFileTime);
-    DetourFunctionWithTrampoline((PBYTE) Real_GetSystemTime, (PBYTE) Mine_GetSystemTime);
-    DetourFunctionWithTrampoline((PBYTE) Real_timeSetEvent, (PBYTE) Mine_timeSetEvent);
-    DetourFunctionWithTrampoline((PBYTE) Real_timeKillEvent, (PBYTE) Mine_timeKillEvent);
-    DetourFunctionWithTrampoline((PBYTE) Real_SetTimer, (PBYTE) Mine_SetTimer);
+    HookFunction(&Real_QueryPerformanceFrequency, Mine_QueryPerformanceFrequency);
+    HookFunction(&Real_QueryPerformanceCounter, Mine_QueryPerformanceCounter);
+    HookFunction(&Real_GetTickCount, Mine_GetTickCount);
+    HookFunction(&Real_timeGetTime, Mine_timeGetTime);
+    HookFunction(&Real_Sleep, Mine_Sleep);
+    HookFunction(&Real_WaitForSingleObject, Mine_WaitForSingleObject);
+    HookFunction(&Real_WaitForMultipleObjects, Mine_WaitForMultipleObjects);
+    HookFunction(&Real_MsgWaitForMultipleObjects, Mine_MsgWaitForMultipleObjects);
+    HookFunction(&Real_GetSystemTimeAsFileTime, Mine_GetSystemTimeAsFileTime);
+    HookFunction(&Real_GetSystemTime, Mine_GetSystemTime);
+    HookFunction(&Real_timeSetEvent, Mine_timeSetEvent);
+    HookFunction(&Real_timeKillEvent, Mine_timeKillEvent);
+    HookFunction(&Real_SetTimer, Mine_SetTimer);
   }
 
   stuckThread = (HANDLE) _beginthreadex(0,0,stuckThreadProc,0,0,0);
@@ -468,9 +468,9 @@ void doneTiming()
       break;
 
   // these functions depend on critical sections that we're about to delete.
-  DetourRemove((PBYTE) Real_timeSetEvent, (PBYTE) Mine_timeSetEvent);
-  DetourRemove((PBYTE) Real_timeKillEvent, (PBYTE) Mine_timeKillEvent);
-  DetourRemove((PBYTE) Real_SetTimer, (PBYTE) Mine_SetTimer);
+  UnhookFunction(&Real_timeSetEvent);
+  UnhookFunction(&Real_timeKillEvent);
+  UnhookFunction(&Real_SetTimer);
   EnterCriticalSection(&TimerAllocLock);
   LeaveCriticalSection(&TimerAllocLock);
   DeleteCriticalSection(&TimerAllocLock);
@@ -482,10 +482,10 @@ void doneTiming()
 
   // we have to remove those, because code we call on deinitilization (especially directshow related)
   // might be using them.
-  DetourRemove((PBYTE) Real_Sleep, (PBYTE) Mine_Sleep);
-  DetourRemove((PBYTE) Real_WaitForSingleObject, (PBYTE) Mine_WaitForSingleObject);
-  DetourRemove((PBYTE) Real_WaitForMultipleObjects, (PBYTE) Mine_WaitForMultipleObjects);
-  DetourRemove((PBYTE) Real_MsgWaitForMultipleObjects, (PBYTE) Mine_MsgWaitForMultipleObjects);
+  UnhookFunction(&Real_Sleep);
+  UnhookFunction(&Real_WaitForSingleObject);
+  UnhookFunction(&Real_WaitForMultipleObjects);
+  UnhookFunction(&Real_MsgWaitForMultipleObjects);
 
   CloseHandle(nextFrameEvent);
   CloseHandle(resyncEvent);

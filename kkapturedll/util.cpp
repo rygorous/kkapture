@@ -90,15 +90,43 @@ void printLogHex(void *buffer,int size)
   }
 }
 
-// ---- vtable patching
+// ---- hooking helpers
 
-PBYTE DetourCOM(IUnknown *obj,int vtableOffs,PBYTE newFunction)
+template<> bool HookFunction(void **target,void *hook)
 {
-  PBYTE **vtblPtr = (PBYTE **) obj;
-  PBYTE *vtbl = *vtblPtr;
-  PBYTE target = vtbl[vtableOffs];
-  
-  return DetourFunction(target,newFunction);
+  return Mhook_SetHook(target,hook) != FALSE;
+}
+
+template<> bool HookFunctionInit(void **target,void *orig,void *hook)
+{
+  *target = orig;
+  return HookFunction(target,hook);
+}
+
+template<> bool GetDLLFunction(void **target,HMODULE module,char *name)
+{
+  *target = GetProcAddress(module,name);
+  return *target != 0;
+}
+
+template<> bool HookDLLFunction(void **target,HMODULE module,char *name,void *hook)
+{
+  if (!GetDLLFunction(target,module,name) || !Mhook_SetHook(target,hook))
+    *target = 0;
+  return *target != 0;
+}
+
+template<> bool HookCOM(void **target,IUnknown *obj,int vtableOffs,void *hook)
+{
+  PVOID **vtblPtr = (PVOID **) obj;
+  PVOID *vtbl = *vtblPtr;
+  *target = vtbl[vtableOffs];
+  return Mhook_SetHook(target,hook) != FALSE;
+}
+
+template<> bool UnhookFunction(void **target)
+{
+  return Mhook_Unhook(target) != FALSE;
 }
 
 // ---- long integer arithmetic

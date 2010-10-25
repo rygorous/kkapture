@@ -45,8 +45,27 @@ public:
   ~Lock()                               { LeaveCriticalSection(CS); }
 };
 
-// ---- vtable patching
-PBYTE DetourCOM(IUnknown *obj,int vtableOffs,PBYTE newFunction);
+// ---- hooking helpers
+
+// Semi-typesafe hooking functions
+template<typename T> bool HookFunction(T *target,T hook)                              { return HookFunction((void **) target,(void *) hook); }
+template<typename T> bool HookFunctionInit(T *target,T orig,T hook)                   { return HookFunctionInit((void **) target,(void *) orig,(void *) hook); }
+template<typename T> bool HookFunctionInitOnce(T *target,T orig,T hook)               { return *target || HookFunctionInit((void **) target,(void *) orig,(void *) hook); }
+template<typename T> bool GetDLLFunction(T *target,HMODULE module,char *name)         { return GetDLLFunction((void **) target,module,name); }
+template<typename T> bool HookDLLFunction(T *target,HMODULE module,char *name,T hook) { return HookDLLFunction((void **) target,module,name,(void *) hook); }
+template<typename T> bool HookCOM(T *target,IUnknown *obj,int vtableOffs,T hook)      { return HookCOM((void **) target,obj,vtableOffs,(void *) hook); }
+template<typename T> bool HookCOMOnce(T *target,IUnknown *obj,int vtableOffs,T hook)  { return *target || HookCOM((void **) target,obj,vtableOffs,(void *) hook); }
+
+template<typename T> bool UnhookFunction(T *target)                                   { return UnhookFunction((void **) target); }
+
+// The "back end"
+template<> bool HookFunction(void **target,void *hook);
+template<> bool HookFunctionInit(void **target,void *orig,void *hook);
+template<> bool GetDLLFunction(void **target,HMODULE module,char *name);
+template<> bool HookDLLFunction(void **target,HMODULE module,char *name,void *hook);
+template<> bool HookCOM(void **target,IUnknown *obj,int vtableOffs,void *hook);
+
+template<> bool UnhookFunction(void **target);
 
 // ---- long integer arithmetic
 // multiply two 32-bit numbers, yielding a 64-bit temporary result,

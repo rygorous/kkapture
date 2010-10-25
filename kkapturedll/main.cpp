@@ -48,7 +48,7 @@ static void init();
 
 // ---- API hooks
 
-DETOUR_TRAMPOLINE(void __stdcall Real_ExitProcess(UINT uExitCode), ExitProcess);
+static void (__stdcall *Real_ExitProcess)(UINT uExitCode) = ExitProcess;
 
 void __stdcall Mine_ExitProcess(UINT uExitCode)
 {
@@ -265,7 +265,7 @@ static void init()
   }
 
   // install our hook so we get notified of process exit (hopefully)
-  DetourFunctionWithTrampoline((PBYTE) Real_ExitProcess, (PBYTE) Mine_ExitProcess);
+  HookFunction(&Real_ExitProcess, Mine_ExitProcess);
   hHookThread = (HANDLE) _beginthread(HookThreadProc,0,0);
 
   initialized = true;

@@ -1,3 +1,4 @@
+* switched from (long defunct) detours 1.5 to free mhook-2.2 (http://codefromthe70s.org/mhook22.aspx).
 * redid startup interception yet again: now using simple DLL injection via CreateRemoteThread. should work fine with .NET executables and be less flaky in general.
 * sound: lock entire directsound buffer when dwBytes=0 (fix for "mother mother, my ears bleed")
 

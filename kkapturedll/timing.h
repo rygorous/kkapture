@@ -31,5 +31,5 @@ void nextFrameTiming();
 
 int getFrameTiming();
 
-extern VOID __stdcall Real_Sleep(DWORD dwMilliseconds);
-extern DWORD __stdcall Real_WaitForSingleObject(HANDLE hHandle,DWORD dwMilliseconds);
+extern VOID (__stdcall *Real_Sleep)(DWORD dwMilliseconds);
+extern DWORD (__stdcall *Real_WaitForSingleObject)(HANDLE hHandle,DWORD dwMilliseconds);
