@@ -724,18 +724,39 @@ typedef struct _REX_SIB
 // If Preconditions == NOCOND, then results in ResultsIfTrue are unconditional and ResultsIfFalse
 // is ignored
 //
+//typedef struct _X86_OPCODE
+//{
+//	struct _X86_OPCODE *Table;
+//	CPU_TYPE CPU; // minimum CPU (starting with i386)
+//	U32 MnemonicFlags;
+//	char Mnemonic[X86_MAX_INSTRUCTION_LEN+1];
+//	U32 OperandFlags[X86_MAX_OPERANDS];
+//	U32 Preconditions;
+//	U32 FlagsChanged; // changes in flags
+//	U32 ResultsIfTrue; // results if Preconditions are met
+//	U32 ResultsIfFalse; // results if Preconditions are not met
+//} X86_OPCODE;
+//
+//#define OPCODE(a,b,c,d,e,f,g,h,i,j,k) { a,b,c,d,e,f,g,h,i,j,k }
+
+// Mhook doesn't need a full disassembler (not even close), so I get rid of most fields
+// to make the tables smaller.
 typedef struct _X86_OPCODE
 {
 	struct _X86_OPCODE *Table;
-	CPU_TYPE CPU; // minimum CPU (starting with i386)
+	//CPU_TYPE CPU; // minimum CPU (starting with i386)
 	U32 MnemonicFlags;
-	char Mnemonic[X86_MAX_INSTRUCTION_LEN+1];
+	//char Mnemonic[X86_MAX_INSTRUCTION_LEN+1];
 	U32 OperandFlags[X86_MAX_OPERANDS];
-	U32 Preconditions;
-	U32 FlagsChanged; // changes in flags
-	U32 ResultsIfTrue; // results if Preconditions are met
-	U32 ResultsIfFalse; // results if Preconditions are not met
+	//U32 Preconditions;
+	//U32 FlagsChanged; // changes in flags
+	//U32 ResultsIfTrue; // results if Preconditions are met
+	//U32 ResultsIfFalse; // results if Preconditions are not met
 } X86_OPCODE;
+
+#define OPCODE(a,b,c,d,e,f,g,h,i,j,k) { a,/*b,*/c,/*d,*/e,f,g/*,h,i,j,k*/ }
+
+#define OPCODENA(a,b,c,d,h,i,j,k) OPCODE(a,b,c,d,{ 0,0,0 },h,i,j,k)
 
 typedef struct _X86_INSTRUCTION
 {

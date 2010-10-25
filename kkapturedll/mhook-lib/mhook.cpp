@@ -554,7 +554,7 @@ static DWORD DisassembleAndSkip(PVOID pFunction, DWORD dwMinLen, MHOOKS_PATCHDAT
 	if (InitDisassembler(&dis, arch)) {
 		INSTRUCTION* pins = NULL;
 		U8* pLoc = (U8*)pFunction;
-		DWORD dwFlags = DISASM_DECODE | DISASM_DISASSEMBLE | DISASM_ALIGNOUTPUT;
+		DWORD dwFlags = DISASM_DECODE | DISASM_DISASSEMBLE | DISASM_ALIGNOUTPUT | DISASM_SUPPRESSERRORS;
 
 		ODPRINTF((L"mhooks: DisassembleAndSkip: Disassembling %p", pLoc));
 		while ( (dwRet < dwMinLen) && (pins = GetInstruction(&dis, (ULONG_PTR)pLoc, pLoc, dwFlags)) ) {
