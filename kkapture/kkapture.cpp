@@ -32,7 +32,7 @@
 #pragma comment(lib,"vfw32.lib")
 #pragma comment(lib,"msacm32.lib")
 
-#define COUNTOF(x) (sizeof(x)*sizeof*(x))
+#define COUNTOF(x) (sizeof(x)/sizeof(*x))
 
 static const TCHAR RegistryKeyName[] = _T("Software\\Farbrausch\\kkapture");
 static const int MAX_ARGS = _MAX_PATH*2;
@@ -215,6 +215,50 @@ static bool ParsePositiveRational(const TCHAR *buffer,int &num,int &denom)
     return false;
 }
 
+static void SetDefaultAVIName(HWND hWndDlg)
+{
+  // set demo .avi file name if not yet set
+  TCHAR drive[_MAX_DRIVE],dir[_MAX_DIR],fname[_MAX_FNAME],ext[_MAX_EXT],path[_MAX_PATH];
+  int nChars = GetDlgItemText(hWndDlg,IDC_TARGET,fname,_MAX_FNAME);
+  if(!nChars)
+  {
+    GetDlgItemText(hWndDlg,IDC_DEMO,path,COUNTOF(path));
+    _tsplitpath(path,drive,dir,fname,ext);
+    _tmakepath(path,drive,dir,fname,_T(".avi"));
+    SetDlgItemText(hWndDlg,IDC_TARGET,path);
+  }
+}
+
+static LRESULT CALLBACK EditBoxSubProc(HWND hWnd,UINT msg,WPARAM wParam,LPARAM lParam)
+{
+  TCHAR buffer[_MAX_PATH];
+  WNDPROC chain = (WNDPROC) GetWindowLongPtr(hWnd,GWLP_USERDATA);
+  HDROP drop;
+
+  switch (msg)
+  {
+  case WM_DROPFILES:
+    drop = (HDROP) wParam;
+    if(DragQueryFile(drop,0,buffer,COUNTOF(buffer)))
+    {
+      SetWindowTextA(hWnd,buffer);
+      if(GetWindowLongPtr(hWnd,GWLP_ID) == IDC_DEMO)
+        SetDefaultAVIName(GetParent(hWnd));
+    }
+    DragFinish(drop);
+    return 0;
+  }
+  
+  return CallWindowProc(chain,hWnd,msg,wParam,lParam);
+}
+
+static void EditBoxEnableDragDrop(HWND hWnd)
+{
+  LONG_PTR oldproc = SetWindowLongPtr(hWnd,GWLP_WNDPROC,(LONG_PTR) EditBoxSubProc);
+  SetWindowLongPtr(hWnd,GWLP_USERDATA,oldproc);
+  DragAcceptFiles(hWnd,TRUE);
+}
+
 static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPARAM lParam)
 {
   switch(uMsg)
@@ -234,7 +278,6 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
       // set gui values
       TCHAR buffer[32];
       FormatRational(buffer,32,Params.FrameRateNum,Params.FrameRateDenom);
-      //_stprintf(buffer,"%d.%02d",Params.FrameRate/100,Params.FrameRate%100);
       SetDlgItemText(hWndDlg,IDC_FRAMERATE,buffer);
 
       _stprintf(buffer,"%d.%02d",Params.FirstFrameTimeout/1000,(Params.FirstFrameTimeout/10)%100);
@@ -265,6 +308,9 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
       CheckDlgButton(hWndDlg,IDC_ENCODERTHREAD,Params.UseEncoderThread ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_CAPTUREGDI,Params.EnableGDICapture ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_VIRTFRAMEBUF,Params.VirtualFramebuffer ? BST_CHECKED : BST_UNCHECKED);
+
+      EditBoxEnableDragDrop(GetDlgItem(hWndDlg,IDC_DEMO));
+      EditBoxEnableDragDrop(GetDlgItem(hWndDlg,IDC_TARGET));
 
       HIC codec = ICOpen(ICTYPE_VIDEO,Params.VideoCodec,ICMODE_QUERY);
       SetVideoCodecInfo(hWndDlg,codec);
@@ -374,16 +420,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         if(GetOpenFileName(&ofn))
         {
           SetDlgItemText(hWndDlg,IDC_DEMO,ofn.lpstrFile);
-
-          // also set demo .avi file name if not yet set
-          TCHAR drive[_MAX_DRIVE],dir[_MAX_DIR],fname[_MAX_FNAME],ext[_MAX_EXT],path[_MAX_PATH];
-          int nChars = GetDlgItemText(hWndDlg,IDC_TARGET,fname,_MAX_FNAME);
-          if(!nChars)
-          {
-            _tsplitpath(ofn.lpstrFile,drive,dir,fname,ext);
-            _tmakepath(path,drive,dir,fname,_T(".avi"));
-            SetDlgItemText(hWndDlg,IDC_TARGET,path);
-          }
+          SetDefaultAVIName(hWndDlg);
         }
       }
       return TRUE;
@@ -518,10 +555,6 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
 
     case ERR_INSTRUMENTATION_FAILED:
       ErrorMsg(_T("Startup instrumentation failed"));
-      break;
-
-    case ERR_COULDNT_FIND_ENTRY_POINT:
-      ErrorMsg(_T("Couldn't determine entry point!"));
       break;
 
     case ERR_COULDNT_EXECUTE:
