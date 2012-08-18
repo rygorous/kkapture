@@ -7,7 +7,8 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-#include "afxres.h"
+#include <winresrc.h>
+#define IDC_STATIC -1
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
@@ -64,13 +65,13 @@ LANGUAGE LANG_NEUTRAL, SUBLANG_SYS_DEFAULT
 // Dialog
 //
 
-IDD_MAINWIN DIALOGEX 0, 0, 258, 278
+IDD_MAINWIN DIALOGEX 0, 0, 258, 294
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION ".kkapture 1.01"
+CAPTION ".kkapture 1.02"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "kkapture!",IDOK,149,257,50,14
-    PUSHBUTTON      "Exit",IDCANCEL,201,257,50,14
+    DEFPUSHBUTTON   "kkapture!",IDOK,149,273,50,14
+    PUSHBUTTON      "Exit",IDCANCEL,201,273,50,14
     EDITTEXT        IDC_DEMO,51,7,146,13,ES_AUTOHSCROLL
     LTEXT           "Demo:",IDC_STATIC,9,9,22,8
     PUSHBUTTON      "Browse...",IDC_BDEMO,201,7,50,13
@@ -86,7 +87,7 @@ BEGIN
     GROUPBOX        "AVI Encoding Options",IDC_STATIC,7,73,244,26
     LTEXT           "Video Codec:",IDC_VIDEOCODEC,14,84,176,8
     PUSHBUTTON      "Pick...",IDC_VCPICK,214,82,30,12
-    GROUPBOX        "Tweaking",IDC_STATIC,7,103,244,73
+    GROUPBOX        "Tweaking",IDC_STATIC,7,103,244,89
     CONTROL         "Capture Video",IDC_VCAPTURE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,114,61,10
     CONTROL         "Capture Audio",IDC_ACAPTURE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,126,62,10
     CONTROL         "Skip digital silence at start",IDC_SKIPSILENCE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,121,114,99,10
@@ -96,15 +97,19 @@ BEGIN
     CONTROL         "Power down on completion",IDC_POWERDOWN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,150,105,10
     CONTROL         "Separate encoder thread",IDC_ENCODERTHREAD,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,121,150,117,10
     CONTROL         "DDraw virtual framebuffer",IDC_VIRTFRAMEBUF,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,163,117,10
-    GROUPBOX        "Auto-skip",IDC_STATIC,7,180,244,72
+    CONTROL         "Fake additional screen resolution:",IDC_EXTRASCREENMODE,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,176,124,10
+    EDITTEXT        IDC_EXTRASCREENWIDTH,138,175,25,13,ES_AUTOHSCROLL
+    LTEXT           "x",IDC_EXTRASCREENX,166,176,6,8
+    EDITTEXT        IDC_EXTRASCREENHEIGHT,172,175,25,13,ES_AUTOHSCROLL
+    GROUPBOX        "Auto-skip",IDC_STATIC,7,196,244,72
     CONTROL         "Skip frames on frequent timer checks",IDC_AUTOSKIP_TIMER,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,192,150,10
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,208,150,10
     CONTROL         "Enable automatic frameskip on timeout",IDC_AUTOSKIP,
-                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,205,150,10
-    LTEXT           "Initial frame timeout (seconds):",IDC_STATIC,14,219,140,8
-    EDITTEXT        IDC_FIRSTFRAMETIMEOUT,130,217,31,13,ES_AUTOHSCROLL
-    LTEXT           "Other frames timeout (seconds):",IDC_STATIC,14,235,140,8
-    EDITTEXT        IDC_OTHERFRAMETIMEOUT,130,233,31,13,ES_AUTOHSCROLL
+                    "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,221,150,10
+    LTEXT           "Initial frame timeout (seconds):",IDC_STATIC,14,235,140,8
+    EDITTEXT        IDC_FIRSTFRAMETIMEOUT,130,233,31,13,ES_AUTOHSCROLL
+    LTEXT           "Other frames timeout (seconds):",IDC_STATIC,14,251,140,8
+    EDITTEXT        IDC_OTHERFRAMETIMEOUT,130,249,31,13,ES_AUTOHSCROLL
 END
 
 

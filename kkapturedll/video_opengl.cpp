@@ -144,13 +144,16 @@ static void finishSwapOnDC(HDC hdc,const HDC &oldDC,const HGLRC &oldRC)
 
 static LONG __stdcall Mine_ChangeDisplaySettingsEx(LPCTSTR lpszDeviceName,LPDEVMODE lpDevMode,HWND hwnd,DWORD dwflags,LPVOID lParam)
 {
-  LONG result = Real_ChangeDisplaySettingsEx(lpszDeviceName,lpDevMode,hwnd,dwflags,lParam);
-
-  if(result == DISP_CHANGE_SUCCESSFUL && lpDevMode &&
-    (lpDevMode->dmFields & (DM_PELSWIDTH | DM_PELSHEIGHT)) == (DM_PELSWIDTH | DM_PELSHEIGHT))
-    setCaptureResolution(lpDevMode->dmPelsWidth,lpDevMode->dmPelsHeight);
-
-  return result;
+  if (params.ExtraScreenMode) {
+    setCaptureResolution(params.ExtraScreenWidth, params.ExtraScreenHeight);
+    return DISP_CHANGE_SUCCESSFUL;
+  } else {
+    LONG result = Real_ChangeDisplaySettingsEx(lpszDeviceName,lpDevMode,hwnd,dwflags,lParam);
+    if(result == DISP_CHANGE_SUCCESSFUL && lpDevMode &&
+      (lpDevMode->dmFields & (DM_PELSWIDTH | DM_PELSHEIGHT)) == (DM_PELSWIDTH | DM_PELSHEIGHT))
+      setCaptureResolution(lpDevMode->dmPelsWidth,lpDevMode->dmPelsHeight);
+    return result;
+  }
 }
 
 static HGLRC __stdcall Mine_wglCreateContext(HDC hdc)

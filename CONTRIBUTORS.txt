@@ -2,10 +2,10 @@ OFFICIAL PROJECT HOMEPAGE:
   http://www.farbrausch.de/~fg/kkapture
   
 OFFICIAL GIT REPOSITORY:
-  git://gitorious.org/kkapture/kkapture.git
-  (gitorious homepage: http://gitorious.org/kkapture)
+	git://github.com/rygorous/kkapture.git
+	(see also https://github.com/rygorous/kkapture)
   
-MAINTAINER AND PROJECT LEAD:
+MAINTAINER:
   Fabian "ryg/farbrausch" Giesen
   http://www.farbrausch.de/~fg
   
@@ -14,6 +14,7 @@ CONTRIBUTORS:
   Bernhard "bartman" Wodok          AVI splitting, resolution bugfix in v0.04
   Joern "manx" Heusipp              waveout-bugfix in v0.04
   Iñigo "iq" Quilez                 Wrote original version of GDI capture code included in v1.00
+  Martin "KeyJ" Fiedler             Initial version of the "fake additional resolution" option
   
 ----
 
