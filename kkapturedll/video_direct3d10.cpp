@@ -32,62 +32,71 @@ static HRESULT (__stdcall *Real_CreateDXGIFactory)(REFIID riid,void **ppFactory)
 static HRESULT (__stdcall *Real_Factory_CreateSwapChain)(IUnknown *me,IUnknown *dev,DXGI_SWAP_CHAIN_DESC *desc,IDXGISwapChain **chain) = 0;
 static HRESULT (__stdcall *Real_SwapChain_Present)(IDXGISwapChain *me,UINT SyncInterval,UINT Flags) = 0;
 
-static HRESULT __stdcall Mine_SwapChain_Present(IDXGISwapChain *me,UINT SyncInterval,UINT Flags)
+static bool grabFrameD3D10(IDXGISwapChain *swap)
 {
   ID3D10Device *device = 0;
   ID3D10Texture2D *tex = 0, *captureTex = 0;
 
-  if(params.CaptureVideo && SUCCEEDED(me->GetBuffer(0,IID_ID3D10Texture2D,(void**) &tex)))
+  if (FAILED(swap->GetBuffer(0, IID_ID3D10Texture2D, (void**)&tex)))
+    return false;
+
+  D3D10_TEXTURE2D_DESC desc;
+  tex->GetDevice(&device);
+  tex->GetDesc(&desc);
+
+  // re-creating the capture staging texture each frame is definitely not the most efficient
+  // way to handle things, but it frees me of all kind of resource management trouble, so
+  // here goes...
+  desc.MipLevels = 1;
+  desc.ArraySize = 1;
+  desc.SampleDesc.Count = 1;
+  desc.SampleDesc.Quality = 0;
+  desc.Usage = D3D10_USAGE_STAGING;
+  desc.BindFlags = 0;
+  desc.CPUAccessFlags = D3D10_CPU_ACCESS_READ;
+  desc.MiscFlags = 0;
+
+  if(FAILED(device->CreateTexture2D(&desc,0,&captureTex)))
+    printLog("video/d3d10: couldn't create staging texture for gpu->cpu download!\n");
+  else
+    setCaptureResolution(desc.Width,desc.Height);
+
+  if(device)
+    device->CopySubresourceRegion(captureTex,0,0,0,0,tex,0,0);
+
+  D3D10_MAPPED_TEXTURE2D mapped;
+  bool grabOk = false;
+
+  if(captureTex && SUCCEEDED(captureTex->Map(0,D3D10_MAP_READ,0,&mapped)))
   {
-    D3D10_TEXTURE2D_DESC desc;
-    tex->GetDevice(&device);
-    tex->GetDesc(&desc);
-
-    // re-creating the capture staging texture each frame is definitely not the most efficient
-    // way to handle things, but it frees me of all kind of resource management trouble, so
-    // here goes...
-    desc.MipLevels = 1;
-    desc.ArraySize = 1;
-    desc.SampleDesc.Count = 1;
-    desc.SampleDesc.Quality = 0;
-    desc.Usage = D3D10_USAGE_STAGING;
-    desc.BindFlags = 0;
-    desc.CPUAccessFlags = D3D10_CPU_ACCESS_READ;
-    desc.MiscFlags = 0;
-
-    if(FAILED(device->CreateTexture2D(&desc,0,&captureTex)))
-      printLog("video/d3d10: couldn't create staging texture for gpu->cpu download!\n");
-    else
-      setCaptureResolution(desc.Width,desc.Height);
-
-    if(device)
-      device->CopySubresourceRegion(captureTex,0,0,0,0,tex,0,0);
-
-    D3D10_MAPPED_TEXTURE2D mapped;
-    bool grabOk = false;
-
-    if(captureTex && SUCCEEDED(captureTex->Map(0,D3D10_MAP_READ,0,&mapped)))
+    switch(desc.Format)
     {
-      switch(desc.Format)
-      {
-      case DXGI_FORMAT_R8G8B8A8_UNORM:
-        blitAndFlipRGBAToCaptureData((unsigned char *) mapped.pData,mapped.RowPitch);
-        grabOk = true;
-        break;
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+      blitAndFlipRGBAToCaptureData((unsigned char *) mapped.pData,mapped.RowPitch);
+      grabOk = true;
+      break;
 
-      default:
-        printLog("video/d3d10: unsupported backbuffer format, can't grab pixels!\n");
-        break;
-      }
-
-      captureTex->Unmap(0);
+    default:
+      printLog("video/d3d10: unsupported backbuffer format, can't grab pixels!\n");
+      break;
     }
 
-    tex->Release();
-    if(captureTex) captureTex->Release();
-    if(device) device->Release();
+    captureTex->Unmap(0);
+  }
 
-    if(grabOk)
+  tex->Release();
+  if(captureTex) captureTex->Release();
+  if(device) device->Release();
+
+  return grabOk;
+}
+
+static HRESULT __stdcall Mine_SwapChain_Present(IDXGISwapChain *me,UINT SyncInterval,UINT Flags)
+{
+
+  if(params.CaptureVideo)
+  {
+    if (grabFrameD3D10(me))
       encoder->WriteFrame(captureData);
   }
 
