@@ -25,13 +25,13 @@
 #include "videoencoder.h"
 #include "videocapturetimer.h"
 
-#include "ddraw.h"
-#pragma comment(lib,"ddraw.lib")
+#include <InitGuid.h>
+#include <ddraw.h>
 
 // DON'T LOOK, this is by far the messiest source in this project...
 
-static HRESULT (__stdcall *Real_DirectDrawCreate)(GUID *lpGUID,LPDIRECTDRAW *lplpDD,IUnknown *pUnkOuter) = DirectDrawCreate;
-static HRESULT (__stdcall *Real_DirectDrawCreateEx)(GUID *lpGUID,LPVOID *lplpDD,REFIID iid,IUnknown *pUnkOuter) = DirectDrawCreateEx;
+typedef HRESULT (__stdcall *PDirectDrawCreate)(GUID *lpGUID,LPDIRECTDRAW *lplpDD,IUnknown *pUnkOuter);
+typedef HRESULT (__stdcall *PDirectDrawCreateEx)(GUID *lpGUID,LPVOID *lplpDD,REFIID iid,IUnknown *pUnkOuter);
 
 typedef HRESULT (__stdcall *PQueryInterface)(IUnknown *dd,REFIID iid,LPVOID *ppObj);
 typedef HRESULT (__stdcall *PDDraw_CreateSurface)(IUnknown *dd,LPDDSURFACEDESC ddsd,LPDIRECTDRAWSURFACE *surf,IUnknown *pUnkOuter);
@@ -39,6 +39,9 @@ typedef HRESULT (__stdcall *PDDrawSurface_Blt)(IUnknown *dds,LPRECT destrect,IUn
 typedef HRESULT (__stdcall *PDDrawSurface_Flip)(IUnknown *dds,IUnknown *surf,DWORD flags);
 typedef HRESULT (__stdcall *PDDrawSurface_Lock)(IUnknown *dds,LPRECT rect,LPDDSURFACEDESC desc,DWORD flags,HANDLE hnd);
 typedef HRESULT (__stdcall *PDDrawSurface_Unlock)(IUnknown *dds,void *ptr);
+
+static PDirectDrawCreate Real_DirectDrawCreate = 0;
+static PDirectDrawCreateEx Real_DirectDrawCreateEx = 0;
 
 static PQueryInterface Real_DDraw_QueryInterface = 0;
 static PDDraw_CreateSurface Real_DDraw_CreateSurface = 0;
@@ -884,6 +887,15 @@ HRESULT __stdcall Mine_DirectDrawCreateEx(GUID *lpGUID,LPVOID *lplpDD,REFIID iid
 
 void initVideo_DirectDraw()
 {
-  HookFunction(&Real_DirectDrawCreate,Mine_DirectDrawCreate);
-  HookFunction(&Real_DirectDrawCreateEx,Mine_DirectDrawCreateEx);
+  HMODULE ddraw = LoadLibraryA("ddraw.dll");
+  if (!ddraw)
+    return;
+
+  Real_DirectDrawCreate = (PDirectDrawCreate)GetProcAddress(ddraw, "DirectDrawCreate");
+  if (Real_DirectDrawCreate)
+    HookFunction(&Real_DirectDrawCreate,Mine_DirectDrawCreate);
+
+  Real_DirectDrawCreateEx = (PDirectDrawCreateEx)GetProcAddress(ddraw, "DirectDrawCreateEx");
+  if (Real_DirectDrawCreateEx)
+    HookFunction(&Real_DirectDrawCreateEx,Mine_DirectDrawCreateEx);
 }
