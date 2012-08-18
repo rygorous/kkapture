@@ -26,6 +26,7 @@
 
 #include <InitGuid.h>
 #include <dxgi.h>
+#include <d3d11.h>
 #include <d3d10.h>
 
 static HRESULT (__stdcall *Real_CreateDXGIFactory)(REFIID riid,void **ppFactory) = 0;
@@ -91,12 +92,73 @@ static bool grabFrameD3D10(IDXGISwapChain *swap)
   return grabOk;
 }
 
+static bool grabFrameD3D11(IDXGISwapChain *swap)
+{
+  ID3D11Device *device = 0;
+  ID3D11DeviceContext *context = 0;
+  ID3D11Texture2D *tex = 0, *captureTex = 0;
+
+  if (FAILED(swap->GetBuffer(0, IID_ID3D11Texture2D, (void**)&tex)))
+    return false;
+
+  D3D11_TEXTURE2D_DESC desc;
+  tex->GetDevice(&device);
+  tex->GetDesc(&desc);
+
+  // re-creating the capture staging texture each frame is definitely not the most efficient
+  // way to handle things, but it frees me of all kind of resource management trouble, so
+  // here goes...
+  desc.MipLevels = 1;
+  desc.ArraySize = 1;
+  desc.SampleDesc.Count = 1;
+  desc.SampleDesc.Quality = 0;
+  desc.Usage = D3D11_USAGE_STAGING;
+  desc.BindFlags = 0;
+  desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+  desc.MiscFlags = 0;
+
+  if(FAILED(device->CreateTexture2D(&desc,0,&captureTex)))
+    printLog("video/d3d11: couldn't create staging texture for gpu->cpu download!\n");
+  else
+    setCaptureResolution(desc.Width,desc.Height);
+
+  device->GetImmediateContext(&context);
+  context->CopySubresourceRegion(captureTex,0,0,0,0,tex,0,0);
+
+  D3D11_MAPPED_SUBRESOURCE mapped;
+  bool grabOk = false;
+
+  if(captureTex && SUCCEEDED(context->Map(captureTex,0,D3D11_MAP_READ,0,&mapped)))
+  {
+    switch(desc.Format)
+    {
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+      blitAndFlipRGBAToCaptureData((unsigned char *) mapped.pData,mapped.RowPitch);
+      grabOk = true;
+      break;
+
+    default:
+      printLog("video/d3d11: unsupported backbuffer format, can't grab pixels!\n");
+      break;
+    }
+
+    context->Unmap(captureTex,0);
+  }
+
+  tex->Release();
+  if(captureTex) captureTex->Release();
+  context->Release();
+  device->Release();
+
+  return grabOk;
+}
+
 static HRESULT __stdcall Mine_SwapChain_Present(IDXGISwapChain *me,UINT SyncInterval,UINT Flags)
 {
 
   if(params.CaptureVideo)
   {
-    if (grabFrameD3D10(me))
+    if (grabFrameD3D10(me) || grabFrameD3D11(me))
       encoder->WriteFrame(captureData);
   }
 
