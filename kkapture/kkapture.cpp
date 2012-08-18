@@ -112,6 +112,9 @@ static void LoadSettingsFromRegistry()
   Params.EnableGDICapture = RegQueryDWord(hk,_T("EnableGDICapture"),0);
   Params.FrequentTimerCheck = RegQueryDWord(hk,_T("FrequentTimerCheck"),1);
   Params.VirtualFramebuffer = RegQueryDWord(hk,_T("VirtualFramebuffer"),0);
+  Params.ExtraScreenMode = FALSE;  // don't store that in the registry
+  Params.ExtraScreenWidth = RegQueryDWord(hk,_T("ExtraScreenWidth"),1920);
+  Params.ExtraScreenHeight = RegQueryDWord(hk,_T("ExtraScreenHeight"),1080);
 
   if(hk)
     RegCloseKey(hk);
@@ -136,6 +139,8 @@ static void SaveSettingsToRegistry()
     RegSetDWord(hk,_T("UseEncoderThread"),Params.UseEncoderThread);
     RegSetDWord(hk,_T("FrequentTimerCheck"),Params.FrequentTimerCheck);
     RegSetDWord(hk,_T("VirtualFramebuffer"),Params.VirtualFramebuffer);
+    RegSetDWord(hk,_T("ExtraScreenWidth"),Params.ExtraScreenWidth);
+    RegSetDWord(hk,_T("ExtraScreenHeight"),Params.ExtraScreenHeight);
     RegCloseKey(hk);
   }
 }
@@ -309,6 +314,15 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
       CheckDlgButton(hWndDlg,IDC_CAPTUREGDI,Params.EnableGDICapture ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_VIRTFRAMEBUF,Params.VirtualFramebuffer ? BST_CHECKED : BST_UNCHECKED);
 
+      CheckDlgButton(hWndDlg,IDC_EXTRASCREENMODE,Params.ExtraScreenMode ? BST_CHECKED : BST_UNCHECKED);
+      EnableDlgItem(hWndDlg,IDC_EXTRASCREENWIDTH,Params.ExtraScreenMode ? TRUE : FALSE);
+      EnableDlgItem(hWndDlg,IDC_EXTRASCREENX,Params.ExtraScreenMode ? TRUE : FALSE);
+      EnableDlgItem(hWndDlg,IDC_EXTRASCREENHEIGHT,Params.ExtraScreenMode ? TRUE : FALSE);
+      _itoa(Params.ExtraScreenWidth,buffer,10);
+      SetDlgItemText(hWndDlg,IDC_EXTRASCREENWIDTH,buffer);
+      _itoa(Params.ExtraScreenHeight,buffer,10);
+      SetDlgItemText(hWndDlg,IDC_EXTRASCREENHEIGHT,buffer);
+
       EditBoxEnableDragDrop(GetDlgItem(hWndDlg,IDC_DEMO));
       EditBoxEnableDragDrop(GetDlgItem(hWndDlg,IDC_TARGET));
 
@@ -335,6 +349,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         TCHAR frameRateStr[64];
         TCHAR firstFrameTimeout[64];
         TCHAR otherFrameTimeout[64];
+        TCHAR extraScreenWidthStr[12], extraScreenHeightStr[12];
 
         Params.VersionTag = PARAMVERSION;
 
@@ -345,6 +360,8 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         GetDlgItemText(hWndDlg,IDC_FRAMERATE,frameRateStr,sizeof(frameRateStr)/sizeof(*frameRateStr));
         GetDlgItemText(hWndDlg,IDC_FIRSTFRAMETIMEOUT,firstFrameTimeout,sizeof(firstFrameTimeout)/sizeof(*firstFrameTimeout));
         GetDlgItemText(hWndDlg,IDC_OTHERFRAMETIMEOUT,otherFrameTimeout,sizeof(otherFrameTimeout)/sizeof(*otherFrameTimeout));
+        GetDlgItemText(hWndDlg,IDC_EXTRASCREENWIDTH,extraScreenWidthStr,sizeof(extraScreenWidthStr)/sizeof(*extraScreenWidthStr));
+        GetDlgItemText(hWndDlg,IDC_EXTRASCREENHEIGHT,extraScreenHeightStr,sizeof(extraScreenHeightStr)/sizeof(*extraScreenHeightStr));
 
         BOOL autoSkip = IsDlgButtonChecked(hWndDlg,IDC_AUTOSKIP) == BST_CHECKED;
 
@@ -392,6 +409,12 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         Params.UseEncoderThread = IsDlgButtonChecked(hWndDlg,IDC_ENCODERTHREAD) == BST_CHECKED;
         Params.EnableGDICapture = IsDlgButtonChecked(hWndDlg,IDC_CAPTUREGDI) == BST_CHECKED;
         Params.VirtualFramebuffer = IsDlgButtonChecked(hWndDlg,IDC_VIRTFRAMEBUF) == BST_CHECKED;
+        Params.ExtraScreenMode = IsDlgButtonChecked(hWndDlg,IDC_EXTRASCREENMODE) == BST_CHECKED;
+        Params.ExtraScreenWidth = atoi(extraScreenWidthStr);
+        Params.ExtraScreenHeight = atoi(extraScreenHeightStr);
+        if (!Params.ExtraScreenWidth || !Params.ExtraScreenHeight || (Params.ExtraScreenWidth > 32767) || (Params.ExtraScreenHeight > 32767)) {
+            Params.ExtraScreenMode = FALSE;
+        }
 
         // save settings for next time
         SaveSettingsToRegistry();
@@ -493,6 +516,16 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         EnableDlgItem(hWndDlg,IDC_OTHERFRAMETIMEOUT,enable);
       }
       return TRUE;
+    
+    case IDC_EXTRASCREENMODE:
+      {
+        BOOL enable = IsDlgButtonChecked(hWndDlg,IDC_EXTRASCREENMODE) == BST_CHECKED;
+        EnableDlgItem(hWndDlg,IDC_EXTRASCREENWIDTH,enable);
+        EnableDlgItem(hWndDlg,IDC_EXTRASCREENX,enable);
+        EnableDlgItem(hWndDlg,IDC_EXTRASCREENHEIGHT,enable);
+      }
+      return TRUE;
+
     }
     break;
   }

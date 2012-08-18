@@ -28,6 +28,10 @@
 #define IDC_AUTOSKIP_TIMER              1028
 #define IDC_ENCODERTHREAD2              1029
 #define IDC_VIRTFRAMEBUF                1029
+#define IDC_EXTRASCREENMODE             1030
+#define IDC_EXTRASCREENWIDTH            1031
+#define IDC_EXTRASCREENHEIGHT           1032
+#define IDC_EXTRASCREENX                1033
 
 // Next default values for new objects
 // 

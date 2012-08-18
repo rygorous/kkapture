@@ -37,7 +37,7 @@ extern bool exitNextFrame;
 extern void *hModule;
 
 // parameter block submitted by main app
-static const int PARAMVERSION = 5;
+static const int PARAMVERSION = 6;
 
 enum EncoderType
 {
@@ -75,6 +75,10 @@ struct ParameterBlock
   BOOL EnableGDICapture;
   BOOL FrequentTimerCheck;
   BOOL VirtualFramebuffer;
+
+  BOOL ExtraScreenMode;
+  DWORD ExtraScreenWidth;
+  DWORD ExtraScreenHeight;
 
   DWORD CodecDataSize;
   UCHAR CodecSpecificData[16384];

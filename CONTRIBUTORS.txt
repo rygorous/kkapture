@@ -14,6 +14,7 @@ CONTRIBUTORS:
   Bernhard "bartman" Wodok          AVI splitting, resolution bugfix in v0.04
   Joern "manx" Heusipp              waveout-bugfix in v0.04
   Iñigo "iq" Quilez                 Wrote original version of GDI capture code included in v1.00
+  Martin "KeyJ" Fiedler             Initial version of the "fake additional resolution" option
   
 ----
 

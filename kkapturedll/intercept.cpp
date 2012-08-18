@@ -23,6 +23,7 @@
 #include "stdafx.h"
 #include "intercept.h"
 #include "main.h"
+#include <process.h>
 
 #define COUNTOF(x) (sizeof(x)/sizeof(*x))
 
