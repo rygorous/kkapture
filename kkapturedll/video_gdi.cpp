@@ -108,7 +108,7 @@ static void captureSourceBits(HDC hdc,int xSrc,int ySrc,int xRes,int yRes)
 {
   // need to create a temp bitmap so we can get the HBITMAP of the real data
   HBITMAP tempBitmap = CreateCompatibleBitmap(hdc,1,1);
-  HBITMAP srcBitmap = SelectBitmap(hdc,tempBitmap);
+  HBITMAP srcBitmap = (HBITMAP)SelectObject(hdc,tempBitmap);
 
   // get bitmap info
   BITMAPINFO bmi;
@@ -128,8 +128,8 @@ static void captureSourceBits(HDC hdc,int xSrc,int ySrc,int xRes,int yRes)
   delete[] temp;
 
   // restore old bitmap and destroy temp bitmap
-  SelectBitmap(hdc,srcBitmap);
-  DeleteBitmap(tempBitmap);
+  SelectObject(hdc,srcBitmap);
+  DeleteObject(tempBitmap);
 }
 
 // trampolines

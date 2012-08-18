@@ -28,6 +28,8 @@
 
 #if USE_DSHOW_AVI_WRITER
 
+#include "streams.h"
+
 // okay, so why is this only enabled on a define?
 // why you would want to enable it:
 // - it allows kkapture to write avi files >2gb without indexing problems

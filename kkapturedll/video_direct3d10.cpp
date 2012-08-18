@@ -24,8 +24,9 @@
 #include "video.h"
 #include "videoencoder.h"
 
-#include "dxgi.h"
-#include "d3d10.h"
+#include <InitGuid.h>
+#include <dxgi.h>
+#include <d3d10.h>
 
 static HRESULT (__stdcall *Real_CreateDXGIFactory)(REFIID riid,void **ppFactory) = 0;
 static HRESULT (__stdcall *Real_Factory_CreateSwapChain)(IUnknown *me,IUnknown *dev,DXGI_SWAP_CHAIN_DESC *desc,IDXGISwapChain **chain) = 0;

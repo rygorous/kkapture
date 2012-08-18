@@ -22,7 +22,7 @@
 
 #pragma once
 
-#define _WIN32_WINNT 0x0400
+#define _WIN32_WINNT 0x0501
 
 #include <hash_map>
 
@@ -30,6 +30,7 @@
 #include "mhook-lib/mhook.h"
 
 #include <vfw.h>
+#include <tchar.h>
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -39,7 +40,3 @@
 #include "sound.h"
 #include "timing.h"
 #include "util.h"
-
-#if USE_DSHOW_AVI_WRITER
-#include "streams.h"
-#endif
