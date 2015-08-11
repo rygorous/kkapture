@@ -158,7 +158,7 @@ static HRESULT __stdcall Mine_SwapChain_Present(IDXGISwapChain *me,UINT SyncInte
 
   if(params.CaptureVideo)
   {
-    if (grabFrameD3D10(me) || grabFrameD3D11(me))
+    if (grabFrameD3D11(me) || grabFrameD3D10(me))
       encoder->WriteFrame(captureData);
   }
 
