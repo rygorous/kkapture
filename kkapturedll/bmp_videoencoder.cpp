@@ -97,7 +97,7 @@ void BMPVideoEncoder::WriteFrame(const unsigned char *buffer)
   {
     // create filename
     char filename[512];
-    _snprintf_s(filename,sizeof(filename)/sizeof(*filename),"%s%04d.bmp",prefix,frame);
+    _snprintf_s(filename,sizeof(filename)/sizeof(*filename),"%s%06d.bmp",prefix,frame);
 
     // create file, write headers+image
     FILE *f = fopen(filename,"wb");
