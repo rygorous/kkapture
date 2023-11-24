@@ -1411,12 +1411,20 @@ struct BASS_INFO
 };
 
 static BOOL (__stdcall *Real_BASS_Init)(int device,DWORD freq,DWORD flags,HWND win,GUID *clsid) = 0;
+static BOOL (__stdcall *Real_BASS_Init4)(int device,DWORD freq,DWORD flags,HWND win) = 0;
 static BOOL (__stdcall *Real_BASS_GetInfo)(BASS_INFO *info) = 0;
 
 static BOOL __stdcall Mine_BASS_Init(int device,DWORD freq,DWORD flags,HWND win,GUID *clsid)
 {
   // for BASS, all we need to do is make sure that the BASS_DEVICE_LATENCY flag is cleared.
   return Real_BASS_Init(device,freq,flags & ~256,win,clsid);
+}
+
+/* older versions of BASS.DLL where GetVersion() returns something like 0x00060001 */
+static BOOL __stdcall Mine_BASS_Init4(int device,DWORD freq,DWORD flags,HWND win)
+{
+  // for BASS, all we need to do is make sure that the BASS_DEVICE_LATENCY flag is cleared.
+  return Real_BASS_Init4(device,freq,flags & ~256,win);
 }
 
 static BOOL __stdcall Mine_BASS_GetInfo(BASS_INFO *info)
@@ -1426,12 +1434,33 @@ static BOOL __stdcall Mine_BASS_GetInfo(BASS_INFO *info)
   return res;
 }
 
+// NTS: Based on some older 1999-2001-ish demos, BASS changed the BASS_Init() function slightly
+//      by adding a parameter. If we don't pay attention to this, then our hook will only cause
+//      crashes by mismanaging the stack.
+//
+//      The older BASS_Init() appears to have four parameters, while newer ones (that this code
+//      was originally written for) have the 5th "CLSID" parameter.
+static DWORD BASS_Version = 0;
+
 static void initSoundsysBASS()
 {
   HMODULE bassDll = LoadLibraryA("bass.dll");
+  if(bassDll) {
+    DWORD (*__BASS_GetVersion)() = (DWORD (*)())GetProcAddress(bassDll,"BASS_GetVersion");
+    if (__BASS_GetVersion) BASS_Version = __BASS_GetVersion();
+
+    printLog("sound/bass: bass.dll version 0x%08lx\n",(unsigned long)BASS_Version);
+    if (BASS_Version >= 0x01000000/*newer*/) {
+      printLog("sound/bass: bass.dll using 5-param hook\n");
+      HookDLLFunction(&Real_BASS_Init,bassDll,"BASS_Init",Mine_BASS_Init);
+    }
+    else /* version 0x00060001 (1.6?) */ {
+      printLog("sound/bass: bass.dll using 4-param hook\n");
+      HookDLLFunction(&Real_BASS_Init4,bassDll,"BASS_Init",Mine_BASS_Init4);
+    }
+  }
   if(bassDll &&
-    HookDLLFunction(&Real_BASS_Init,bassDll,"BASS_Init",Mine_BASS_Init) &&
-    HookDLLFunction(&Real_BASS_GetInfo,bassDll,"BASS_GetInfo",Mine_BASS_GetInfo))
+     HookDLLFunction(&Real_BASS_GetInfo,bassDll,"BASS_GetInfo",Mine_BASS_GetInfo))
   {
     printLog("sound/bass: bass.dll found, BASS support enabled.\n");
   }
