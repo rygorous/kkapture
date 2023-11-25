@@ -50,7 +50,7 @@ static GLenum useReadBuffer = GL_FRONT;
 // we keep track of active HDC/HGLRC pairs so kkapture can map HDCs passed to
 // SwapBuffers to rendering contexts (kkapture may need to temporarily switch
 // rendering context to perform readback).
-stdext::hash_map<HDC,HGLRC> rcFromDC;
+std::unordered_map<HDC,HGLRC> rcFromDC;
 
 // ---- gl framegrabbing code
 
