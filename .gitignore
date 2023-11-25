@@ -7,3 +7,5 @@
 ipch/
 Debug/
 Release/
+dshow_base/strmbase_d.lib
+dshow_base/strmbase_r.lib
