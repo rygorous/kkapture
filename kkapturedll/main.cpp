@@ -223,6 +223,10 @@ static void init()
 
       while(PeekMessage(&msg,0,0,0,PM_REMOVE))
       {
+		  if (msg.message == WM_KEYDOWN && msg.wParam == VK_ESCAPE) {
+			  Real_ExitProcess(1);
+			  return;
+		  }
         TranslateMessage(&msg);
         DispatchMessage(&msg);
       }
