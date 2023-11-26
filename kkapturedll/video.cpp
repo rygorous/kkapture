@@ -134,6 +134,34 @@ void videoNeedEncoder()
   }
 }
 
+extern "C" __declspec(dllexport) bool ST_initEncoder() {
+	videoNeedEncoder();
+	return (encoder != NULL);
+}
+
+extern "C" __declspec(dllexport) void ST_freeEncoder() {
+	if (encoder) {
+		delete encoder;
+		encoder = 0;
+	}
+}
+
+extern "C" __declspec(dllexport) void ST_SetVideoSize(int xRes,int yRes) {
+	if (encoder) encoder->SetSize(xRes,yRes);
+}
+
+extern "C" __declspec(dllexport) void ST_SetAudioFormat(const struct tWAVEFORMATEX *fmt) {
+	if (encoder) encoder->SetAudioFormat(fmt);
+}
+
+extern "C" __declspec(dllexport) void ST_WriteFrame(const unsigned char *buffer) {
+	if (encoder) encoder->WriteFrame(buffer);
+}
+
+extern "C" __declspec(dllexport) void ST_WriteAudioFrame(const void *buffer,int samples) {
+	if (encoder) encoder->WriteAudioFrame(buffer,samples);
+}
+
 // capture buffer
 int captureWidth = 0, captureHeight = 0;
 unsigned char *captureData = 0;

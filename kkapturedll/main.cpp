@@ -199,7 +199,7 @@ static void init()
   CloseHandle(hMapping);
 
   // if kkapture is being debugged, wait for the user to attach the debugger to this process
-  if(params.IsDebugged)
+  if(params.IsDebugged && !params.IsSelfTest)
   {
     // create message window
     HWND waiting = CreateWindowEx(0,"STATIC",
@@ -271,6 +271,10 @@ static void init()
   initialized = true;
 
   printLog("main: initialization done\n");
+}
+
+extern "C" __declspec(dllexport) void ST_init() {
+	init();
 }
 
 BOOL APIENTRY DllMain(HINSTANCE hModule, DWORD dwReason, PVOID lpReserved)

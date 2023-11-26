@@ -25,12 +25,17 @@
 #include <stdlib.h>
 #include <stddef.h>
 #include <tchar.h>
+#include <math.h>
 #include "../kkapturedll/main.h"
 #include "../kkapturedll/intercept.h"
 #include "resource.h"
 
 #pragma comment(lib,"vfw32.lib")
 #pragma comment(lib,"msacm32.lib")
+
+#ifndef M_PI
+# define M_PI           3.14159265358979323846
+#endif M_PI
 
 #define COUNTOF(x) (sizeof(x)/sizeof(*x))
 
@@ -98,6 +103,7 @@ static void LoadSettingsFromRegistry()
   if(RegOpenKeyEx(HKEY_CURRENT_USER,RegistryKeyName,0,KEY_READ,&hk) != ERROR_SUCCESS)
     hk = 0;
 
+  Params.IsSelfTest = false; // never store in registry
   Params.FrameRateNum = RegQueryDWord(hk,_T("FrameRate"),6000);
   Params.FrameRateDenom = RegQueryDWord(hk,_T("FrameRateDenom"),100);
   Params.Encoder = (EncoderType) RegQueryDWord(hk,_T("VideoEncoder"),AVIEncoderVFW);
@@ -349,11 +355,15 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         BOOL autoSkip = IsDlgButtonChecked(hWndDlg,IDC_AUTOSKIP) == BST_CHECKED;
 
         // validate everything and fill out parameter block
-        HANDLE hFile = CreateFile(ExeName,GENERIC_READ,0,0,OPEN_EXISTING,0,0);
-        if(hFile == INVALID_HANDLE_VALUE)
-          return !ErrorMsg(_T("You need to specify a valid executable in the 'demo' field."),hWndDlg);
-        else
-          CloseHandle(hFile);
+
+		// Demo EXE not required if the self-test box was checked
+		if (IsDlgButtonChecked(hWndDlg,IDC_SELFTEST) != BST_CHECKED) {
+          HANDLE hFile = CreateFile(ExeName,GENERIC_READ,0,0,OPEN_EXISTING,0,0);
+          if(hFile == INVALID_HANDLE_VALUE)
+            return !ErrorMsg(_T("You need to specify a valid executable in the 'demo' field."),hWndDlg);
+          else
+            CloseHandle(hFile);
+		}
 
         int frameRateNum,frameRateDenom;
         if(!ParsePositiveRational(frameRateStr,frameRateNum,frameRateDenom)
@@ -379,6 +389,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         Params.FrameRateDenom = frameRateDenom;
         Params.Encoder = (EncoderType) (1 + SendDlgItemMessage(hWndDlg,IDC_ENCODER,CB_GETCURSEL,0,0));
 
+		Params.IsSelfTest = IsDlgButtonChecked(hWndDlg,IDC_SELFTEST) == BST_CHECKED;
         Params.CaptureVideo = IsDlgButtonChecked(hWndDlg,IDC_VCAPTURE) == BST_CHECKED;
         Params.CaptureAudio = IsDlgButtonChecked(hWndDlg,IDC_ACAPTURE) == BST_CHECKED;
         Params.SoundMaxSkip = IsDlgButtonChecked(hWndDlg,IDC_SKIPSILENCE) == BST_CHECKED ? 10 : 0;
@@ -527,6 +538,113 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
     _tcscat(commandLine,_T("\" "));
     _tcscat(commandLine,Arguments);
 
+	if (Params.IsSelfTest) {
+		// self-test mode: KKapture calls the DLL directly, synthesizes audio and video
+		// and calls the AVI writer code directly as a means to easily test and debug
+		// that code without ever having to do a delicate debugger dance and possibly
+		// have to debug with a screen resolution that is too low to work with the
+		// debugger (i.e. 640x480).
+		// Note that KKapture.exe already loads KKapturedll.dll as a depdency, so there
+		// is no need to use LoadLibrary().
+		ST_init(); // trigger the init() function again, this time with a valid param block
+
+		if (!ST_initEncoder())
+			return 1;
+
+		int xRes = 640,yRes = 480;//TODO: Provide a way for the user to specify this!
+
+		if (xRes < 4 || yRes < 1 || xRes > 4096 || yRes > 4096 || (xRes % 4) != 0)
+			return 1;
+
+		unsigned char wfx_raw[sizeof(WAVEFORMATEXTENSIBLE)];//just in case
+		WAVEFORMATEX *wfx = (WAVEFORMATEX*)wfx_raw;
+		memset(wfx_raw,0,sizeof(wfx_raw));
+
+		wfx->wFormatTag = WAVE_FORMAT_PCM;
+		wfx->wBitsPerSample = 16;//TODO: Provide a way for the user to specify this!
+		wfx->nSamplesPerSec = 44100;//TODO: Provide a way for the user to specify this!
+		wfx->nChannels = 2;//TODO: Provide a way for the user to specify this!
+
+		wfx->cbSize = 0;
+		wfx->nBlockAlign = wfx->nChannels * ((wfx->wBitsPerSample+7)/8);
+		wfx->nAvgBytesPerSec = wfx->nBlockAlign * wfx->nSamplesPerSec;
+
+		ST_SetVideoSize(xRes,yRes);
+		ST_SetAudioFormat(wfx);
+
+		// allocate frame and audio. Everything in this codebase is based around 24bpp RGB.
+		unsigned char *frame = new unsigned char[xRes*yRes*3];
+
+		const unsigned int samplecount_adv_m = (unsigned long long)Params.FrameRateNum;
+		const unsigned int samplecount_adv_w = (unsigned int)(((unsigned long long)wfx->nSamplesPerSec * (unsigned long long)Params.FrameRateDenom) / (unsigned long long)Params.FrameRateNum);
+		const unsigned int samplecount_adv_f = (unsigned int)(((unsigned long long)wfx->nSamplesPerSec * (unsigned long long)Params.FrameRateDenom) % (unsigned long long)Params.FrameRateNum);
+		unsigned int samplecount_w = 0;
+		unsigned int samplecount_f = 0;
+		unsigned char *audio = new unsigned char[(samplecount_adv_w + 1) * wfx->nChannels * wfx->nBlockAlign];
+
+		// Go!
+		for (unsigned long fn=0;fn < 1000;fn++) {
+			unsigned int samples = samplecount_adv_w;
+			samplecount_f += samplecount_adv_f;
+			if (samplecount_f >= samplecount_adv_m) {
+				samplecount_f -= samplecount_adv_m;
+				samples++;
+			}
+			if (samples > (samplecount_adv_w+1)) return 1;
+
+			// Make video frame. The bitmap is "normal" in that the scanlines are "upside down" like a normal bitmap.
+			{
+				int vy=0;
+
+				for (;vy < (yRes/2);vy++) {
+					unsigned char *drow = frame + (xRes*3*(yRes-1-vy)/*upside down*/);
+					for (int vx=0;vx < xRes;vx++) {
+						const unsigned int scx = ((vx+fn) * 256 * 4) / xRes; // red/green/blue/white ramps move to the left
+						drow[0] = ((scx&0x300) == 0x200 || (scx&0x300) == 0x300) ? (scx & 0xFF) : 0;//blue
+						drow[1] = ((scx&0x300) == 0x100 || (scx&0x300) == 0x300) ? (scx & 0xFF) : 0;//green
+						drow[2] = ((scx&0x300) == 0x000 || (scx&0x300) == 0x300) ? (scx & 0xFF) : 0;//red
+						drow += 3;
+					}
+				}
+
+				for (;vy < yRes;vy++) {
+					unsigned char *drow = frame + (xRes*3*(yRes-1-vy)/*upside down*/);
+					for (int vx=0;vx < xRes;vx++) {
+						const unsigned int xx = vx-fn;
+						const unsigned int scx = ((vy-(yRes/2)) * 4) / ((yRes+1)/2); // red/green/blue/white XOR patterns move to the right
+						drow[0] = (scx == 2 || scx == 3) ? ((xx^vy)&0xFF) : 0;//blue
+						drow[1] = (scx == 1 || scx == 3) ? ((xx^vy)&0xFF) : 0;//green
+						drow[2] = (scx == 0 || scx == 3) ? ((xx^vy)&0xFF) : 0;//red
+						drow += 3;
+					}
+				}
+			}
+
+			// make audio
+			if (wfx->wBitsPerSample == 16) {
+				// signed short int == 16 bits
+				signed short int *w = (signed short int*)audio;
+				for (unsigned int s=0;s < samples;s++) {
+					const double sa = ((double)samplecount_w * M_PI * 2.0 * 1000.0) / wfx->nSamplesPerSec; // 1000Hz test tone
+					const signed short int sv = (signed short int)(sin(sa) * 32767.0 * 0.25); // don't make it loud, please
+
+					samplecount_w++;
+					for (unsigned int c=0;c < wfx->nChannels;c++) *w++ = sv;
+				}
+			}
+
+			ST_WriteFrame(frame);
+			ST_WriteAudioFrame(audio,samples);
+		}
+
+		// done
+		delete[] audio;
+		delete[] frame;
+		ST_freeEncoder();
+	}
+	else {
+		// normal KKapture injection into target demo process
+
     // create process
 	  STARTUPINFOA si;
 	  PROCESS_INFORMATION pi;
@@ -564,6 +682,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
 
     // cleanup
     CloseHandle(pi.hProcess);
+	}
     CloseHandle(hParamMapping);
   }
 
