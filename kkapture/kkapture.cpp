@@ -584,7 +584,13 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
                if (!ST_initEncoder())
                        return 1;
 
-               int xRes = 640,yRes = 480;//TODO: Provide a way for the user to specify this!
+               int xRes = 640,yRes = 480;
+
+			   // If the user entered an extra screen mode, use THAT for xRes and yRes
+			   if (Params.ExtraScreenMode) {
+				   xRes = (Params.ExtraScreenWidth + 3) & ~3u; // round up to multiple of 4
+				   yRes = Params.ExtraScreenHeight;
+			   }
 
                if (xRes < 4 || yRes < 1 || xRes > 4096 || yRes > 4096 || (xRes % 4) != 0)
                        return 1;
