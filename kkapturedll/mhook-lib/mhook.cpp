@@ -675,6 +675,11 @@ BOOL Mhook_SetHook(PVOID *ppSystemFunction, PVOID pHookFunction) {
 	if (dwInstructionLength == 1 && ((BYTE*)pSystemFunction)[0] == 0x51/*PUSH ECX*/ && ((BYTE*)pSystemFunction)[1] == 0xFF/*CALL*/ && ((BYTE*)pSystemFunction)[2] == 0x15/*mod/reg/rm says to DWORD PTR [some address]*/) {
 		dwInstructionLength += 1+1+4; // <CALL> <mod reg rm> <32-bit address>
 	}
+	// FSOUND_GetCurrentPosition() in some cases starts right away with a CALL <rel32> instruction, and
+	// therefore in the original version of this code was never patched.
+	if (dwInstructionLength == 0 && ((BYTE*)pSystemFunction)[0] == 0xE8/*CALL*/) {
+		dwInstructionLength += 1+4; // <CALL> <rel32>
+	}
 #endif
 	if (dwInstructionLength >= MHOOK_JMPSIZE) {
 		ODPRINTF((L"mhooks: Mhook_SetHook: disassembly signals %d bytes", dwInstructionLength));
@@ -703,6 +708,11 @@ BOOL Mhook_SetHook(PVOID *ppSystemFunction, PVOID pHookFunction) {
 					for (DWORD i = 0; i<dwInstructionLength; i++) {
 						pTrampoline->codeUntouched[i] = pbCode[i] = ((PBYTE)pSystemFunction)[i];
 					}
+#ifdef _M_IX86
+					if (((BYTE*)pSystemFunction)[0] == 0xE8/*CALL*/) {
+						*((DWORD*)(pbCode+1)) += (DWORD)pSystemFunction - (DWORD)pbCode;
+					}
+#endif
 					pbCode += dwInstructionLength;
 					// plus a jump to the continuation in the original location
 					pbCode = EmitJump(pbCode, ((PBYTE)pSystemFunction) + dwInstructionLength);
