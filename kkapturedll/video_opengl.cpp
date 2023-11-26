@@ -142,6 +142,20 @@ static void finishSwapOnDC(HDC hdc,const HDC &oldDC,const HGLRC &oldRC)
 
 // ---- hooked API functions follow
 
+static LONG __stdcall Mine_ChangeDisplaySettings(LPDEVMODE lpDevMode,DWORD dwFlags)
+{
+  if (params.ExtraScreenMode) {
+    setCaptureResolution(params.ExtraScreenWidth, params.ExtraScreenHeight);
+    return DISP_CHANGE_SUCCESSFUL;
+  } else {
+    LONG result = Real_ChangeDisplaySettings(lpDevMode,dwFlags);
+    if(result == DISP_CHANGE_SUCCESSFUL && lpDevMode &&
+      (lpDevMode->dmFields & (DM_PELSWIDTH | DM_PELSHEIGHT)) == (DM_PELSWIDTH | DM_PELSHEIGHT))
+      setCaptureResolution(lpDevMode->dmPelsWidth,lpDevMode->dmPelsHeight);
+    return result;
+  }
+}
+
 static LONG __stdcall Mine_ChangeDisplaySettingsEx(LPCTSTR lpszDeviceName,LPDEVMODE lpDevMode,HWND hwnd,DWORD dwflags,LPVOID lParam)
 {
   if (params.ExtraScreenMode) {
@@ -243,6 +257,7 @@ static BOOL __stdcall Mine_wglSwapLayerBuffers(HDC hdc,UINT fuPlanes)
 
 void initVideo_OpenGL()
 {
+  HookFunction(&Real_ChangeDisplaySettings,Mine_ChangeDisplaySettings);
   HookFunction(&Real_ChangeDisplaySettingsEx,Mine_ChangeDisplaySettingsEx);
   HookFunction(&Real_wglCreateContext,Mine_wglCreateContext);
   HookFunction(&Real_wglCreateLayerContext,Mine_wglCreateLayerContext);
