@@ -619,7 +619,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
                const unsigned int samplecount_adv_f = (unsigned int)(((unsigned long long)wfx->nSamplesPerSec * (unsigned long long)Params.FrameRateDenom) % (unsigned long long)Params.FrameRateNum);
                unsigned int samplecount_w = 0;
                unsigned int samplecount_f = 0;
-               unsigned char *audio = new unsigned char[(samplecount_adv_w + 1) * wfx->nChannels * wfx->nBlockAlign];
+               unsigned char *audio = new unsigned char[(samplecount_adv_w + 1) * wfx->nBlockAlign];
 
                // Go!
                for (unsigned long fn=0;fn < 1000;fn++) {
