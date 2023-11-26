@@ -76,6 +76,7 @@ struct ParameterBlock
   BOOL EnableGDICapture;
   BOOL FrequentTimerCheck;
   BOOL VirtualFramebuffer;
+  BOOL ForceDPIAware;
 
   BOOL ExtraScreenMode;
   DWORD ExtraScreenWidth;

@@ -168,6 +168,12 @@ static void done()
   DeleteCriticalSection(&shuttingDown);
 }
 
+typedef enum __PROCESS_DPI_AWARENESS {
+    __PROCESS_DPI_UNAWARE = 0,
+    __PROCESS_SYSTEM_DPI_AWARE = 1,
+    __PROCESS_PER_MONITOR_DPI_AWARE = 2
+} __PROCESS_DPI_AWARENESS;
+
 static void init()
 {
   bool error = true;
@@ -197,6 +203,29 @@ static void init()
   }
 
   CloseHandle(hMapping);
+
+  // Windows 8/10/11: There seems to be a problem with full screen demos and "high DPI" screens
+  //                  where the demo is "zoomed in" to the upper left corner and not fully visible on the screen.
+  //                  To solve this, tell Windows we are DPI aware to disable that upscaling.
+  if (params.ForceDPIAware) {
+    HRESULT (WINAPI *__SetProcessDpiAwareness)(__PROCESS_DPI_AWARENESS) = NULL; // windows 8.1
+    BOOL (WINAPI *__SetProcessDPIAware)(void) = NULL; // vista/7/8/10
+    HMODULE __user32;
+    HMODULE __shcore;
+
+    __user32 = GetModuleHandle("USER32.DLL");
+    __shcore = GetModuleHandle("SHCORE.DLL");
+
+    if (__user32)
+      __SetProcessDPIAware = (BOOL(WINAPI *)(void))GetProcAddress(__user32, "SetProcessDPIAware");
+    if (__shcore)
+      __SetProcessDpiAwareness = (HRESULT (WINAPI *)(__PROCESS_DPI_AWARENESS))GetProcAddress(__shcore, "SetProcessDpiAwareness");
+
+    if (__SetProcessDpiAwareness)
+      __SetProcessDpiAwareness(__PROCESS_PER_MONITOR_DPI_AWARE);
+    if (__SetProcessDPIAware)
+      __SetProcessDPIAware();
+  }
 
   // if kkapture is being debugged, wait for the user to attach the debugger to this process
   if(params.IsDebugged && !params.IsSelfTest)

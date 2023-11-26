@@ -31,6 +31,7 @@
 #define IDC_EXTRASCREENHEIGHT           1032
 #define IDC_EXTRASCREENX                1033
 #define IDC_SELFTEST                    1034
+#define IDC_FORCEDPIAWARE               1035
 
 // Next default values for new objects
 // 

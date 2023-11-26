@@ -121,6 +121,7 @@ static void LoadSettingsFromRegistry()
   Params.ExtraScreenMode = FALSE;  // don't store that in the registry
   Params.ExtraScreenWidth = RegQueryDWord(hk,_T("ExtraScreenWidth"),1920);
   Params.ExtraScreenHeight = RegQueryDWord(hk,_T("ExtraScreenHeight"),1080);
+  Params.ForceDPIAware = RegQueryDWord(hk,_T("ForceDPIAware"),0);
 
   if(hk)
     RegCloseKey(hk);
@@ -147,6 +148,7 @@ static void SaveSettingsToRegistry()
     RegSetDWord(hk,_T("VirtualFramebuffer"),Params.VirtualFramebuffer);
     RegSetDWord(hk,_T("ExtraScreenWidth"),Params.ExtraScreenWidth);
     RegSetDWord(hk,_T("ExtraScreenHeight"),Params.ExtraScreenHeight);
+	RegSetDWord(hk,_T("ForceDPIAware"),Params.ForceDPIAware);
     RegCloseKey(hk);
   }
 }
@@ -319,6 +321,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
       CheckDlgButton(hWndDlg,IDC_ENCODERTHREAD,Params.UseEncoderThread ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_CAPTUREGDI,Params.EnableGDICapture ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_VIRTFRAMEBUF,Params.VirtualFramebuffer ? BST_CHECKED : BST_UNCHECKED);
+	  CheckDlgButton(hWndDlg,IDC_FORCEDPIAWARE,Params.ForceDPIAware ? BST_CHECKED : BST_UNCHECKED);
 
       CheckDlgButton(hWndDlg,IDC_EXTRASCREENMODE,Params.ExtraScreenMode ? BST_CHECKED : BST_UNCHECKED);
       EnableDlgItem(hWndDlg,IDC_EXTRASCREENWIDTH,Params.ExtraScreenMode ? TRUE : FALSE);
@@ -406,6 +409,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         Params.FrameRateDenom = frameRateDenom;
         Params.Encoder = (EncoderType) (1 + SendDlgItemMessage(hWndDlg,IDC_ENCODER,CB_GETCURSEL,0,0));
 
+		Params.ForceDPIAware = IsDlgButtonChecked(hWndDlg,IDC_FORCEDPIAWARE) == BST_CHECKED;
 		Params.IsSelfTest = IsDlgButtonChecked(hWndDlg,IDC_SELFTEST) == BST_CHECKED;
         Params.CaptureVideo = IsDlgButtonChecked(hWndDlg,IDC_VCAPTURE) == BST_CHECKED;
         Params.CaptureAudio = IsDlgButtonChecked(hWndDlg,IDC_ACAPTURE) == BST_CHECKED;
