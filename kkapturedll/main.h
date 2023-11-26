@@ -77,6 +77,10 @@ struct ParameterBlock
   BOOL FrequentTimerCheck;
   BOOL VirtualFramebuffer;
 
+  BOOL ExtraScreenMode;
+  DWORD ExtraScreenWidth;
+  DWORD ExtraScreenHeight;
+
   DWORD CodecDataSize;
   UCHAR CodecSpecificData[16384];
 };
