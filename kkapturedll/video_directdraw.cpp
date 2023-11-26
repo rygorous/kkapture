@@ -802,7 +802,7 @@ static HRESULT __stdcall Mine_DDrawSurface7_Flip(IUnknown *me,IUnknown *other,DW
 
 static HRESULT __stdcall Mine_DDrawSurface7_Lock(IUnknown *me,LPRECT rect,LPDDSURFACEDESC desc,DWORD flags,HANDLE hnd)
 {
-  HRESULT hr = Real_DDrawSurface_Lock(me,rect,desc,flags,hnd);
+  HRESULT hr = Real_DDrawSurface7_Lock(me,rect,desc,flags,hnd);
   if(SUCCEEDED(hr) && rect == 0 && PrimarySurfaceVersion == 7 && me == PrimarySurface)
     ImplementLockPrimary(me,desc,7);
 
