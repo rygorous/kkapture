@@ -386,8 +386,8 @@ public:
     }
 
     DeleteCriticalSection(&BufferLock);
-    delete Format;
-    delete[] Buffer;
+    delete Format; Format = NULL;
+    delete[] Buffer; Buffer = NULL;
   }
 
   // IUnknown methods
@@ -629,7 +629,7 @@ public:
 
   virtual HRESULT __stdcall SetFormat(LPCWAVEFORMATEX pcfxFormat)
   {
-    delete Format;
+    delete Format; Format = NULL;
     Format = CopyFormat(pcfxFormat);
     if(playBuffer==this)
       encoder->SetAudioFormat(Format);
@@ -1004,7 +1004,7 @@ public:
 
   ~WaveOutImpl()
   {
-    delete Format;
+    delete Format; Format = NULL;
     callbackMessage(WOM_CLOSE,0,0);
   }
 
@@ -1044,6 +1044,15 @@ public:
     return MMSYSERR_NOERROR;
   }
 
+  // FIXME: "Wonder" by Sunflower does not render audio properly here
+  //        because when you use the Wave multimedia setting (not DirectSound)
+  //        the demo prepares and submits one WAVEHDR block with WHDR_PREPARED|WHDR_BEGINLOOP|WHDR_ENDLOOP
+  //        set. Meaning, if you don't use DirectSound mode, it uses the waveOut API to play a
+  //        circular audio buffer anyway. Apparently this happened to work on whatever Windows 95 or
+  //        Windows 98 system that demo was written for, but it doesn't work well on Windows 7, it works
+  //        worse on Windows 11, and completely fails within this virtualization (plays very fast and the
+  //        demo periodically skips forward). The DirectSound mode is handled just as badly here and is no
+  //        better at this time.
   MMRESULT write(WAVEHDR *hdr,UINT size)
   {
     if(!hdr || size != sizeof(WAVEHDR))
@@ -1195,7 +1204,7 @@ public:
     DWORD sampleNew = UMulDiv(frame,Format->nSamplesPerSec * frameRateDenom,frameRateScaled);
     DWORD sampleCount = sampleNew - CurrentSamplePos;
 
-    if(!Current || Paused) // write one frame of no audio
+    if(!Current || Paused || !sampleCount) // write one frame of no audio
     {
       encodeNoAudio(sampleCount);
 
@@ -1209,6 +1218,8 @@ public:
         int smps = min(sampleCount,(Current->dwBufferLength - CurrentBufferPos) / align);
         if(smps)
           encoder->WriteAudioFrame((PBYTE) Current->lpData + CurrentBufferPos,smps);
+		else
+		  break; // Wonder by Sunflower uses 16-bit stereo and dwBufferLength not a multiple of align
 
         sampleCount -= smps;
         CurrentBufferPos += smps * align;
