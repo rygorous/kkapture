@@ -77,6 +77,7 @@ struct ParameterBlock
   BOOL FrequentTimerCheck;
   BOOL VirtualFramebuffer;
   BOOL ForceDPIAware;
+  BOOL PreventTopmostWindow; // prevent the demo window from setting topmost status so you can Alt+Tab away if you need your desktop back
 
   BOOL ExtraScreenMode;
   DWORD ExtraScreenWidth;

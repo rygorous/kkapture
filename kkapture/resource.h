@@ -32,6 +32,7 @@
 #define IDC_EXTRASCREENX                1033
 #define IDC_SELFTEST                    1034
 #define IDC_FORCEDPIAWARE               1035
+#define IDC_PREVENTTOPMOST              1036
 
 // Next default values for new objects
 // 
@@ -39,7 +40,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        103
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1022
+#define _APS_NEXT_CONTROL_VALUE         1037
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

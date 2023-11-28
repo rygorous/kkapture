@@ -58,6 +58,9 @@ static void __cdecl WaitProcessThreadProc(void *arg)
 
 static BOOL (__stdcall *Real_CreateProcessA)(LPCSTR appName,LPSTR cmdLine,LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,LPVOID env,LPCSTR currentDir,LPSTARTUPINFOA startupInfo,LPPROCESS_INFORMATION processInfo) = CreateProcessA;
 static BOOL (__stdcall *Real_CreateProcessW)(LPCWSTR appName,LPWSTR cmdLine,LPSECURITY_ATTRIBUTES processAttr,LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,LPVOID env,LPCWSTR currentDir,LPSTARTUPINFOW startupInfo,LPPROCESS_INFORMATION processInfo) = CreateProcessW;
+static HWND (__stdcall *Real_CreateWindowExA)(DWORD dwExStyle,LPCSTR lpClassName,LPCSTR lpWindowName,DWORD dwStyle,int X,int Y,int nWidth,int nHeight,HWND hWndParent,HMENU hMenu,HINSTANCE hInstance,LPVOID lpParam) = CreateWindowExA;
+static HWND (__stdcall *Real_CreateWindowExW)(DWORD dwExStyle,LPCWSTR lpClassName,LPCWSTR lpWindowName,DWORD dwStyle,int X,int Y,int nWidth,int nHeight,HWND hWndParent,HMENU hMenu,HINSTANCE hInstance,LPVOID lpParam) = CreateWindowExW;
+static BOOL (__stdcall *Real_SetWindowPos)(HWND hWnd,HWND hWndInsertAfter,int X,int Y,int cx,int cy,UINT uFlags) = SetWindowPos;
 
 static BOOL __stdcall Mine_CreateProcessA(LPCSTR appName,LPSTR cmdLine,LPSECURITY_ATTRIBUTES processAttr,
   LPSECURITY_ATTRIBUTES threadAttr,BOOL inheritHandles,DWORD flags,LPVOID env,LPCSTR currentDir,
@@ -178,8 +181,29 @@ int CreateInstrumentedProcessW(LPCWSTR appName,LPWSTR cmdLine,
   }
 }
 
+static HWND __stdcall Mine_CreateWindowExA(DWORD dwExStyle,LPCSTR lpClassName,LPCSTR lpWindowName,DWORD dwStyle,int X,int Y,int nWidth,int nHeight,HWND hWndParent,HMENU hMenu,HINSTANCE hInstance,LPVOID lpParam) {
+	if (params.PreventTopmostWindow) dwExStyle &= ~WS_EX_TOPMOST;
+	return Real_CreateWindowExA(dwExStyle,lpClassName,lpWindowName,dwStyle,X,Y,nWidth,nHeight,hWndParent,hMenu,hInstance,lpParam);
+}
+
+static HWND __stdcall Mine_CreateWindowExW(DWORD dwExStyle,LPCWSTR lpClassName,LPCWSTR lpWindowName,DWORD dwStyle,int X,int Y,int nWidth,int nHeight,HWND hWndParent,HMENU hMenu,HINSTANCE hInstance,LPVOID lpParam) {
+	if (params.PreventTopmostWindow) dwExStyle &= ~WS_EX_TOPMOST;
+	return Real_CreateWindowExW(dwExStyle,lpClassName,lpWindowName,dwStyle,X,Y,nWidth,nHeight,hWndParent,hMenu,hInstance,lpParam);
+}
+
+static BOOL __stdcall Mine_SetWindowPos(HWND hWnd,HWND hWndInsertAfter,int X,int Y,int cx,int cy,UINT uFlags) {
+	if (params.PreventTopmostWindow) {
+		if (hWndInsertAfter == HWND_TOPMOST) hWndInsertAfter = HWND_TOP;
+	}
+
+	return Real_SetWindowPos(hWnd,hWndInsertAfter,X,Y,cx,cy,uFlags);
+}
+
 void initProcessIntercept()
 {
   HookFunction(&Real_CreateProcessA,Mine_CreateProcessA);
   HookFunction(&Real_CreateProcessW,Mine_CreateProcessW);
+  HookFunction(&Real_CreateWindowExA,Mine_CreateWindowExA);
+  HookFunction(&Real_CreateWindowExW,Mine_CreateWindowExW);
+  HookFunction(&Real_SetWindowPos,Mine_SetWindowPos);
 }
