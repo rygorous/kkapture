@@ -305,11 +305,7 @@ VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 {
   // Bugfix: Standard Windows common controls will stall a lot if we enforce Sleep() policy here at all times,
   //         at least in Windows 11, where the dropdown control will call Sleep(1) when you click the down arrow.
-  if (getFrameTiming() == 0) {
-	  Real_Sleep(dwMilliseconds);
-	  return;
-  }
-
+  //         Sleep dwMilliseconds at all times if getFrameTiming() == 0.
   if(dwMilliseconds)
   {
     Real_WaitForSingleObject(resyncEvent,INFINITE);
@@ -321,7 +317,7 @@ VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 	do {
 		do {
 			IncrementWaiting();
-			if(params.MakeSleepsLastOneFrame) // FIXME: Erm... isn't this misnamed here? The "else" case actually does make this sleep one frame, the "if" case otherwise!
+			if(params.MakeSleepsLastOneFrame || getFrameTiming() == 0) // FIXME: Erm... isn't this misnamed here? The "else" case actually does make this sleep one frame, the "if" case otherwise!
 				Real_WaitForSingleObject(nextFrameEvent,dwMilliseconds);
 			else
 				Real_WaitForSingleObject(nextFrameEvent,params.SleepTimeout);
