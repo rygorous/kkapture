@@ -303,6 +303,13 @@ static void DecrementWaiting()
 
 VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 {
+  // Bugfix: Standard Windows common controls will stall a lot if we enforce Sleep() policy here at all times,
+  //         at least in Windows 11, where the dropdown control will call Sleep(1) when you click the down arrow.
+  if (getFrameTiming() == 0) {
+	  Real_Sleep(dwMilliseconds);
+	  return;
+  }
+
   if(dwMilliseconds)
   {
     Real_WaitForSingleObject(resyncEvent,INFINITE);
