@@ -83,6 +83,8 @@ struct ParameterBlock
   DWORD ExtraScreenWidth;
   DWORD ExtraScreenHeight;
 
+  DWORD Microframes; // how many ticks per frame to emulate 
+
   DWORD CodecDataSize;
   UCHAR CodecSpecificData[16384];
 };

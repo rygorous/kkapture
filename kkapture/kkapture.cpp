@@ -123,6 +123,7 @@ static void LoadSettingsFromRegistry()
   Params.ExtraScreenHeight = RegQueryDWord(hk,_T("ExtraScreenHeight"),1080);
   Params.ForceDPIAware = RegQueryDWord(hk,_T("ForceDPIAware"),0);
   Params.PreventTopmostWindow = RegQueryDWord(hk,_T("PreventTopmostWindow"),1);
+  Params.Microframes = RegQueryDWord(hk,_T("Microframes"),0);
 
   if(hk)
     RegCloseKey(hk);
@@ -151,6 +152,7 @@ static void SaveSettingsToRegistry()
     RegSetDWord(hk,_T("ExtraScreenHeight"),Params.ExtraScreenHeight);
 	RegSetDWord(hk,_T("ForceDPIAware"),Params.ForceDPIAware);
 	RegSetDWord(hk,_T("PreventTopmostWindow"),Params.PreventTopmostWindow);
+	RegSetDWord(hk,_T("Microfames"),Params.Microframes);
     RegCloseKey(hk);
   }
 }
@@ -334,6 +336,10 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
       SetDlgItemText(hWndDlg,IDC_EXTRASCREENWIDTH,buffer);
       _itoa(Params.ExtraScreenHeight,buffer,10);
       SetDlgItemText(hWndDlg,IDC_EXTRASCREENHEIGHT,buffer);
+	  if (Params.Microframes != 0) {
+	    _itoa(Params.Microframes,buffer,10);
+	    SetDlgItemText(hWndDlg,IDC_MICROFRAMES,buffer);
+	  }
 
       EditBoxEnableDragDrop(GetDlgItem(hWndDlg,IDC_DEMO));
       EditBoxEnableDragDrop(GetDlgItem(hWndDlg,IDC_TARGET));
@@ -362,6 +368,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         TCHAR firstFrameTimeout[64];
         TCHAR otherFrameTimeout[64];
         TCHAR extraScreenWidthStr[12], extraScreenHeightStr[12];
+		TCHAR microFramesStr[12];
 
         Params.VersionTag = PARAMVERSION;
 
@@ -374,6 +381,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         GetDlgItemText(hWndDlg,IDC_OTHERFRAMETIMEOUT,otherFrameTimeout,sizeof(otherFrameTimeout)/sizeof(*otherFrameTimeout));
         GetDlgItemText(hWndDlg,IDC_EXTRASCREENWIDTH,extraScreenWidthStr,sizeof(extraScreenWidthStr)/sizeof(*extraScreenWidthStr));
         GetDlgItemText(hWndDlg,IDC_EXTRASCREENHEIGHT,extraScreenHeightStr,sizeof(extraScreenHeightStr)/sizeof(*extraScreenHeightStr));
+        GetDlgItemText(hWndDlg,IDC_MICROFRAMES,microFramesStr,sizeof(microFramesStr)/sizeof(*microFramesStr));
 
         BOOL autoSkip = IsDlgButtonChecked(hWndDlg,IDC_AUTOSKIP) == BST_CHECKED;
 
@@ -431,6 +439,7 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         Params.ExtraScreenMode = IsDlgButtonChecked(hWndDlg,IDC_EXTRASCREENMODE) == BST_CHECKED;
         Params.ExtraScreenWidth = atoi(extraScreenWidthStr);
         Params.ExtraScreenHeight = atoi(extraScreenHeightStr);
+		Params.Microframes = atoi(microFramesStr);
         if (!Params.ExtraScreenWidth || !Params.ExtraScreenHeight || (Params.ExtraScreenWidth > 32767) || (Params.ExtraScreenHeight > 32767)) {
             Params.ExtraScreenMode = FALSE;
         }

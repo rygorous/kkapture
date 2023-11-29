@@ -99,6 +99,8 @@ BEGIN
     LTEXT           "x",IDC_EXTRASCREENX,166,176,8,8
     EDITTEXT        IDC_EXTRASCREENHEIGHT,172,175,25,13,ES_AUTOHSCROLL
     CONTROL         "Prevent topmost windows",IDC_PREVENTTOPMOST,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,189,101,10
+    LTEXT           "Microframes:",IDC_STATIC,14,203,48,8
+    EDITTEXT        IDC_MICROFRAMES,76,201,41,13,ES_AUTOHSCROLL
     GROUPBOX        "Auto-skip",IDC_STATIC,7,220,244,72
     CONTROL         "Skip frames on frequent timer checks",IDC_AUTOSKIP_TIMER,
                     "Button",BS_AUTOCHECKBOX | WS_TABSTOP,14,232,150,10

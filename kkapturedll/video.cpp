@@ -58,12 +58,12 @@ VideoEncoder *createVideoEncoder(const char *filename)
     break;
 
   case AVIEncoderVFW:
-    encoder = new AVIVideoEncoderVFW(filename,frameRateScaled,frameRateDenom,params.VideoCodec,params.VideoQuality);
+	  encoder = new AVIVideoEncoderVFW(filename,frameRateScaled/params.Microframes,frameRateDenom,params.VideoCodec,params.VideoQuality);
     break;
 
 #if USE_DSHOW_AVI_WRITER
   case AVIEncoderDShow:
-    encoder = new AVIVideoEncoderDShow(filename,frameRateScaled,frameRateDenom,params.VideoCodec,params.VideoQuality);
+    encoder = new AVIVideoEncoderDShow(filename,frameRateScaled/params.Microframes,frameRateDenom,params.VideoCodec,params.VideoQuality);
     break;
 #endif
 
@@ -246,8 +246,9 @@ void skipFrame()
     VideoCaptureDataLock lock;
 
     // write the old frame again
-    if(encoder && params.CaptureVideo)
-      encoder->WriteFrame(captureData);
+    if(encoder && params.CaptureVideo) {
+      if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
+	}
   }
 
   nextFrame();

@@ -280,6 +280,12 @@ static void init()
   initProcessIntercept();
   printLog("main: all main components initialized.\n");
 
+  if (params.Microframes == 0) // leaving the field empty means use a default
+	  params.Microframes = 16;
+
+  if (params.Microframes > 1024)
+	  params.Microframes = 1024;
+
   if(error)
   {
     printLog("main: couldn't access parameter block or wrong version\n");
@@ -292,7 +298,7 @@ static void init()
   {
     printLog("main: reading parameter block...\n");
 
-    frameRateScaled = params.FrameRateNum;
+	frameRateScaled = params.FrameRateNum * params.Microframes;
     frameRateDenom = params.FrameRateDenom;
     encoder = 0;
   }

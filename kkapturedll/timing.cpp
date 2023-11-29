@@ -287,18 +287,40 @@ static void DecrementWaiting()
 // --- everything that sleeps may accidentially take more than one frame.
 // this causes soundsystems to bug, so we have to fix it here.
 
+// NOTES: "Wonder" by Sunflower uses Sleep(30) in its audio handling thread to keep time with
+//        the sound card. This must be propely maintained or the audio will stutter or run way
+//        too fast and then graphics skip out of confusion. The demo sound library supports
+//        DirectSound and will use this sense of timing for the audio buffer. If you select the
+//        waveOut* support instead, it sets up one WAVEHDR buffer which it then sets the
+//        WHDR_BEGINLOOP|WHDR_ENDLOOP flags apparently to mimic DirectSound looping buffer
+//        behavior with waveOutWrite and such. This method of audio output is good enough that
+//        it happens to work but you might hear erratic audio errors every now and then.
+//        On a Windows 7 system, the audio is OK but glitches out about once every 1-2 minutes.
+//        Windows 11 doesn't handle it well at all. You get the proper sound but it's constantly
+//        a bit glitchy. For this reason, this is one of the few demos where you want to explicitly
+//        clear the "Make sleep last one frame" option because setting it throws audio timing way
+//        off.
+
 VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 {
   if(dwMilliseconds)
   {
     Real_WaitForSingleObject(resyncEvent,INFINITE);
 
-    IncrementWaiting();
-    if(params.MakeSleepsLastOneFrame)
-      Real_WaitForSingleObject(nextFrameEvent,dwMilliseconds);
-    else
-      Real_WaitForSingleObject(nextFrameEvent,params.SleepTimeout);
-    DecrementWaiting();
+	unsigned int howmanyframes = UMulDiv(dwMilliseconds,frameRateScaled/params.Microframes,1000*frameRateDenom);
+	if (howmanyframes == 0) howmanyframes = 1;
+
+	// FIXME: This KKapture code is still very video frame oriented and actually trying to Sleep() for the exact number of microframes doesn't work (at least with Wonder)
+	do {
+		do {
+			IncrementWaiting();
+			if(params.MakeSleepsLastOneFrame) // FIXME: Erm... isn't this misnamed here? The "else" case actually does make this sleep one frame, the "if" case otherwise!
+				Real_WaitForSingleObject(nextFrameEvent,dwMilliseconds);
+			else
+				Real_WaitForSingleObject(nextFrameEvent,params.SleepTimeout);
+			DecrementWaiting();
+		} while ((getFrameTiming() % params.Microframes) != 0);
+	} while (--howmanyframes != 0);
   }
   else
     Real_Sleep(0);

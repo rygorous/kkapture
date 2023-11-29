@@ -383,8 +383,9 @@ static void ImplementFlip(IUnknown *surf,int version)
     {
       VideoCaptureDataLock lock;
 
-      if(Blitter.BlitSurfaceToCapture(back,version))
-        encoder->WriteFrame(captureData);
+      if(Blitter.BlitSurfaceToCapture(back,version)) {
+        if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
+	  }
 
       back->Release();
     }
@@ -443,8 +444,9 @@ static void ImplementBltToPrimary(IUnknown *surf,int version)
       setCaptureResolution(width,height);
 
     VideoCaptureDataLock lock;
-    if(Blitter.BlitSurfaceToCapture((IDirectDrawSurface *) surf,version))
-      encoder->WriteFrame(captureData);
+    if(Blitter.BlitSurfaceToCapture((IDirectDrawSurface *) surf,version)) {
+      if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
+	}
   }
 
   nextFrame();
@@ -503,7 +505,7 @@ static void ImplementUnlockPrimary()
         Blitter.BlitOneLine(src,dst,captureWidth);
       }
 
-      encoder->WriteFrame(captureData);
+      if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
     }
 
     // copy from temp buffer to primary surface so user sees what's going on

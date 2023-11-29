@@ -99,8 +99,9 @@ static bool captureD3DFrame8(IDirect3DDevice8 *dev)
     back->Release();
   }
 
-  if(!error)
-    encoder->WriteFrame(captureData);
+  if(!error) {
+    if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
+  }
 
   return !error;
 }

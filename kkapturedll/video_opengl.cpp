@@ -98,7 +98,7 @@ static void captureGLFrame()
     glReadBuffer(oldReadBuffer);
 
     // encode
-    encoder->WriteFrame(captureData);
+    if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
   }
 }
 
