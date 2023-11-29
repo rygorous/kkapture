@@ -189,7 +189,7 @@ static HRESULT __stdcall Mine_D3DDevice8_Present(IDirect3DDevice8 *dev,DWORD a0,
       printLog("video/d3d8: Frame capture failed! (frame %d)\n",getFrameTiming());
   }
 
-  nextFrame();
+  nextVideoFrame();
   return hr;
 }
 

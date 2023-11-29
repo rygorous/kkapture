@@ -391,7 +391,7 @@ static void ImplementFlip(IUnknown *surf,int version)
     }
   }
 
-  nextFrame();
+  nextVideoFrame();
 }
 
 static bool GetResolutionFromSurface(IUnknown *surf,int version,int &width,int &height)
@@ -449,7 +449,7 @@ static void ImplementBltToPrimary(IUnknown *surf,int version)
 	}
   }
 
-  nextFrame();
+  nextVideoFrame();
 }
 
 static unsigned char *primaryData=0, *primaryLockPtr=0;
@@ -517,7 +517,7 @@ static void ImplementUnlockPrimary()
     primaryData = 0;
   }
 
-  nextFrame();
+  nextVideoFrame();
 }
 
 // ---- directdraw 1

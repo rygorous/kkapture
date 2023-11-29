@@ -100,7 +100,7 @@ static void processDIBits(unsigned char *buffer,int xres,int yres,int xsrc,int y
       captureGDIFrame(buffer,xres,yres,bmi);
     }
 
-    nextFrame();
+    nextVideoFrame();
   }
 }
 

@@ -165,7 +165,7 @@ static HRESULT __stdcall Mine_SwapChain_Present(IDXGISwapChain *me,UINT SyncInte
 
   HRESULT hr = Real_SwapChain_Present(me,0,Flags);
 
-  nextFrame();
+  nextVideoFrame();
   return hr;
 }
 
