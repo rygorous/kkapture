@@ -52,6 +52,7 @@ void initVideo_GDI();
 
 // helpers
 void setCaptureResolution(int width,int height);
+void nextVideoFrame();
 void nextFrame();
 void skipFrame();
 

@@ -28,6 +28,7 @@ void doneTiming();
 void graphicsInitTiming();
 void resetTiming();
 void nextFrameTiming();
+void nextFrameTimingMicro();
 
 int getFrameTiming();
 

@@ -539,6 +539,20 @@ void resetTiming()
   currentFrame = 0;
 }
 
+void nextFrameTimingMicro() {
+  DWORD oldFrameTime = UMulDiv(currentFrame,1000*frameRateDenom,frameRateScaled);
+  DWORD newFrameTime = UMulDiv(currentFrame+1,1000*frameRateDenom,frameRateScaled);
+  ProcessEventTimers(newFrameTime - oldFrameTime);
+
+  if(exitNextFrame)
+  {
+    printLog("main: clean exit requested, doing my best...\n");
+    ExitProcess(0);
+  }
+
+  currentFrame++;
+}
+
 void nextFrameTiming()
 {
   ResetEvent(resyncEvent);

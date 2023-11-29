@@ -233,7 +233,7 @@ static BOOL __stdcall Mine_wglSwapBuffers(HDC hdc)
 
   prepareSwapOnDC(hdc,olddc,oldrc);
   captureGLFrame();
-  nextFrame();
+  nextVideoFrame();
   finishSwapOnDC(hdc,olddc,oldrc);
 
   return Real_wglSwapBuffers(hdc);
@@ -248,7 +248,7 @@ static BOOL __stdcall Mine_wglSwapLayerBuffers(HDC hdc,UINT fuPlanes)
 
     prepareSwapOnDC(hdc,olddc,oldrc);
     captureGLFrame();
-    nextFrame();
+    nextVideoFrame();
     finishSwapOnDC(hdc,olddc,oldrc);
   }
 

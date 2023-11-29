@@ -281,7 +281,7 @@ static void init()
   printLog("main: all main components initialized.\n");
 
   if (params.Microframes == 0) // leaving the field empty means use a default
-	  params.Microframes = 16;
+	  params.Microframes = 2;
 
   if (params.Microframes > 1024)
 	  params.Microframes = 1024;

@@ -238,6 +238,15 @@ void nextFrame()
   nextFrameSound();
 }
 
+// advance video frame
+void nextVideoFrame() {
+	nextFrame();
+	do {
+		nextFrameTimingMicro();
+		nextFrameSound();
+	} while ((getFrameTiming() % params.Microframes) != 0);
+}
+
 // skip this frame (same as nextFrame(), but duplicating old frame data)
 void skipFrame()
 {
