@@ -305,8 +305,7 @@ VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 {
   // Bugfix: Standard Windows common controls will stall a lot if we enforce Sleep() policy here at all times,
   //         at least in Windows 11, where the dropdown control will call Sleep(1) when you click the down arrow.
-  //         Sleep dwMilliseconds at all times if getFrameTiming() == 0.
-  if(dwMilliseconds)
+  if(dwMilliseconds >= 2)
   {
     Real_WaitForSingleObject(resyncEvent,INFINITE);
 
@@ -326,7 +325,7 @@ VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 	} while (--howmanyframes != 0);
   }
   else
-    Real_Sleep(0);
+    Real_Sleep(dwMilliseconds);
 }
 
 DWORD __stdcall Mine_WaitForSingleObject(HANDLE hHandle,DWORD dwMilliseconds)

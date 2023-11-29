@@ -311,6 +311,7 @@ class MyDirectSoundBuffer8 : public IDirectSoundBuffer8
   PBYTE Buffer;
   DWORD Flags;
   DWORD Bytes;
+  DWORD BytesAlloc;
   WAVEFORMATEX *Format;
   DWORD Frequency;
   BOOL Playing,Looping;
@@ -338,7 +339,9 @@ class MyDirectSoundBuffer8 : public IDirectSoundBuffer8
     if(!Playing)
       return 0;
 
-    return (PlayCursor + 128 * Format->nBlockAlign) % Bytes;
+	/* TODO: Make this an option: Whether to emulate an "emulated" DirectSound device or a DirectSound device that is actual hardware */
+	/* Microsoft documented legacy DirectSound behavior where it concerns "emulated" DirectSound devices */
+	return (PlayCursor + ((Format->nSamplesPerSec * 15/*ms*/) / 1000) * Format->nBlockAlign) % Bytes;
   }
 
 public:
@@ -347,7 +350,7 @@ public:
   {
     Flags = flags;
     Buffer = new BYTE[bufBytes];
-    Bytes = bufBytes;
+    Bytes = BytesAlloc = bufBytes;
     memset(Buffer,0,bufBytes);
 
     if(fmt)
@@ -363,6 +366,9 @@ public:
       Format->wBitsPerSample = 16;
       Format->cbSize = 0;
     }
+
+	// Some demos ask for 16-bit stereo PCM (nBlockAlign) from a buffer that is not a multiple of nBlockAlign (Wonder by Sunflower)
+	Bytes = BytesAlloc - (BytesAlloc % Format->nBlockAlign);
 
     Frequency = Format->nSamplesPerSec;
 
@@ -634,6 +640,9 @@ public:
     if(playBuffer==this)
       encoder->SetAudioFormat(Format);
 
+	// Some demos ask for 16-bit stereo PCM (nBlockAlign) from a buffer that is not a multiple of nBlockAlign (Wonder by Sunflower)
+	Bytes = BytesAlloc - (BytesAlloc % Format->nBlockAlign);
+
     return S_OK;
   }
 
@@ -775,7 +784,7 @@ public:
 
   virtual HRESULT __stdcall GetCaps(LPDSCAPS pDSCaps)
   {
-    if(pDSCaps && pDSCaps->dwSize == sizeof(DSCAPS))
+    if(pDSCaps && pDSCaps->dwSize >= sizeof(DSCAPS))
     {
       ZeroMemory(pDSCaps,sizeof(DSCAPS));
 
@@ -1063,6 +1072,9 @@ public:
 
     if(hdr->dwFlags & WHDR_INQUEUE)
       return MMSYSERR_NOERROR;
+
+	// Some demos ask for 16-bit stereo PCM (nBlockAlign) from a buffer that is not a multiple of nBlockAlign (Wonder by Sunflower)
+	hdr->dwBufferLength -= hdr->dwBufferLength % Format->nBlockAlign;
 
     // enqueue
     if(!FrameInitialized) // officially start playback!
