@@ -347,8 +347,8 @@ VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 			frames = params.Microframes;
 		}
 		else {
-			if (dwMilliseconds > (10*params.SleepTimeout)) dwMilliseconds = 10*params.SleepTimeout;
 			frames = UMulDiv(dwMilliseconds,frameRateScaled,frameRateDenom*1000);
+			if (frames > 40) frames = 40; /* FIXME: each wait for a frame is 5-25ms, don't let this get out of hand */
 			if (frames == 0) frames = 1;
 		}
 
