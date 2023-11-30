@@ -316,8 +316,7 @@ VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 
 		pt = Real_GetTickCount();
 		while (dwMilliseconds != 0 && frames != 0 && !exitNextFrame) {
-			hr = Real_WaitForSingleObject(resyncEvent,INFINITE);
-			if (hr == WAIT_ABANDONED || hr == WAIT_FAILED || hr == WAIT_TIMEOUT) break;
+			Real_WaitForSingleObject(resyncEvent,INFINITE);
 
 			IncrementWaiting();
 
@@ -348,13 +347,12 @@ VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 		}
 		else {
 			frames = UMulDiv(dwMilliseconds,frameRateScaled,frameRateDenom*1000);
-			if (frames > 40) frames = 40; /* FIXME: each wait for a frame is 5-25ms, don't let this get out of hand */
+			if (frames > 50) frames = 50; /* FIXME: each wait for a frame is 5-25ms, don't let this get out of hand */
 			if (frames == 0) frames = 1;
 		}
 
 		while (frames != 0 && !exitNextFrame) {
-			hr = Real_WaitForSingleObject(resyncEvent,INFINITE);
-			if (hr == WAIT_ABANDONED || hr == WAIT_FAILED || hr == WAIT_TIMEOUT) break;
+			Real_WaitForSingleObject(resyncEvent,INFINITE);
 
 			IncrementWaiting();
 			hr = Real_WaitForSingleObject(nextFrameEvent,params.SleepTimeout);
