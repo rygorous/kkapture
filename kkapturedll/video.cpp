@@ -240,10 +240,8 @@ void nextFrame()
 
 // advance video frame
 void nextVideoFrame() {
-	nextFrame();
 	do {
-		nextFrameTimingMicro();
-		nextFrameSound();
+		nextFrame();
 	} while ((getFrameTiming() % params.Microframes) != 0);
 }
 

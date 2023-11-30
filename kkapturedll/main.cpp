@@ -281,7 +281,7 @@ static void init()
   printLog("main: all main components initialized.\n");
 
   if (params.Microframes == 0) // leaving the field empty means use a default
-	  params.Microframes = 2;
+	  params.Microframes = 1; // not necessary but may be useful if a demo needs finer timing, also slows down render
 
   if (params.Microframes > 1024)
 	  params.Microframes = 1024;

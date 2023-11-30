@@ -307,22 +307,64 @@ VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
   //         at least in Windows 11, where the dropdown control will call Sleep(1) when you click the down arrow.
   if(dwMilliseconds >= 2)
   {
-    Real_WaitForSingleObject(resyncEvent,INFINITE);
+	if(params.MakeSleepsLastOneFrame || getFrameTiming() == 0) {
+		unsigned int frames = params.Microframes;
+		DWORD pt,ct,dt;
+		HRESULT hr;
 
-	unsigned int howmanyframes = UMulDiv(dwMilliseconds,frameRateScaled/params.Microframes,1000*frameRateDenom);
-	if (howmanyframes == 0) howmanyframes = 1;
+		if (dwMilliseconds == INFINITE) dwMilliseconds = 30000;
 
-	// FIXME: This KKapture code is still very video frame oriented and actually trying to Sleep() for the exact number of microframes doesn't work (at least with Wonder)
-	do {
-		do {
+		pt = Real_GetTickCount();
+		while (dwMilliseconds != 0 && frames != 0 && !exitNextFrame) {
+			hr = Real_WaitForSingleObject(resyncEvent,INFINITE);
+			if (hr == WAIT_ABANDONED || hr == WAIT_FAILED || hr == WAIT_TIMEOUT) break;
+
 			IncrementWaiting();
-			if(params.MakeSleepsLastOneFrame || getFrameTiming() == 0) // FIXME: Erm... isn't this misnamed here? The "else" case actually does make this sleep one frame, the "if" case otherwise!
-				Real_WaitForSingleObject(nextFrameEvent,dwMilliseconds);
+
+			hr = Real_WaitForSingleObject(nextFrameEvent,dwMilliseconds);
+			if (hr == WAIT_ABANDONED || hr == WAIT_FAILED) dwMilliseconds = frames = 0;
+
+			ct = Real_GetTickCount();
+			dt = ct - pt;
+			pt = ct;
+
+			if (dwMilliseconds >= dt)
+				dwMilliseconds -= dt;
 			else
-				Real_WaitForSingleObject(nextFrameEvent,params.SleepTimeout);
+				dwMilliseconds = 0;
+
+			if (frames > 0)
+				frames--;
+
 			DecrementWaiting();
-		} while ((getFrameTiming() % params.Microframes) != 0);
-	} while (--howmanyframes != 0);
+		}
+	}
+	else {
+		unsigned int frames;
+		HRESULT hr;
+
+		if (dwMilliseconds == INFINITE) {
+			frames = params.Microframes;
+		}
+		else {
+			if (dwMilliseconds > (10*params.SleepTimeout)) dwMilliseconds = 10*params.SleepTimeout;
+			frames = UMulDiv(dwMilliseconds,frameRateScaled,frameRateDenom*1000);
+			if (frames == 0) frames = 1;
+		}
+
+		while (frames != 0 && !exitNextFrame) {
+			hr = Real_WaitForSingleObject(resyncEvent,INFINITE);
+			if (hr == WAIT_ABANDONED || hr == WAIT_FAILED || hr == WAIT_TIMEOUT) break;
+
+			IncrementWaiting();
+			hr = Real_WaitForSingleObject(nextFrameEvent,params.SleepTimeout);
+			if (hr == WAIT_ABANDONED || hr == WAIT_FAILED) dwMilliseconds = frames = 0;
+			DecrementWaiting();
+
+			if (frames > 0)
+				frames--;
+		}
+	}
   }
   else
     Real_Sleep(dwMilliseconds);
@@ -539,20 +581,6 @@ void graphicsInitTiming()
 void resetTiming()
 {
   currentFrame = 0;
-}
-
-void nextFrameTimingMicro() {
-  DWORD oldFrameTime = UMulDiv(currentFrame,1000*frameRateDenom,frameRateScaled);
-  DWORD newFrameTime = UMulDiv(currentFrame+1,1000*frameRateDenom,frameRateScaled);
-  ProcessEventTimers(newFrameTime - oldFrameTime);
-
-  if(exitNextFrame)
-  {
-    printLog("main: clean exit requested, doing my best...\n");
-    ExitProcess(0);
-  }
-
-  currentFrame++;
 }
 
 void nextFrameTiming()
