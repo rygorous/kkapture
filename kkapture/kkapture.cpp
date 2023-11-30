@@ -20,6 +20,49 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* Demo TODO list:
+
+-- "Realtime Radiosity 2" by Broncs
+
+   Uses: DirectX, DirectDraw 1 (maybe 2)?
+
+   Problem: The demo animation will always time itself based on your
+            monitor refresh rate. The demo is able to determine the
+            refresh rate in a way KKapture cannot intercept. If you
+            attempt to KKapture at any frame rate other than your
+            monitor refresh rate, the demo animations will run too
+            fast, or too slow.
+
+   Ideal fix: Figure out any and all methods that a demo would determine
+              monitor refresh rate and intercept them so that all reported
+              refresh rates reflect the frame rate entered by the user.
+
+   Workaround: Enter only the refresh rate of your monitor for the frame
+               rate, or use your system display settings to change the
+               refresh rate to a value as close as possible to the refresh
+               rate you want and then enter that as your frame rate.
+
+   Problem: The demo will run in a tiny "window" inside the middle of
+            the screen, because modern Windows drivers (anything since
+            about 2006) no longer support the pixel-doubled low res modes
+            of old (320x200, 320x240, 512x384, etc). This is not specific
+            to Windows Vista as there are late era Windows XP drivers that
+            also dropped support for those modes. The demo uses (I think)
+            a 400x300 mode (800x600 with pixel doubling).
+
+    Ideal fix: Perhaps the DirectDraw "virtual framebuffer" mode could
+               fake it and pixel double to the real display AND to the
+               AVI file. If enabled by the user, of course.
+
+    Workaround: Let the demo render a tiny box in the middle of a 640x480
+                display, and then, in your video editing software, crop
+                to the actual display area and zoom up. You might use
+                FFMPEG's crop filter, and then scaler filter with
+                "nearest neighbor" interpolation to scale up to exactly
+                2x the original size to emulate how it would originally
+                look on CRT monitors of the time.
+*/
+
 #include "stdafx.h"
 #include <stdio.h>
 #include <stdlib.h>
