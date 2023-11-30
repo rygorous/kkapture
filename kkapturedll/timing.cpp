@@ -308,20 +308,23 @@ VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
   if(dwMilliseconds >= 2)
   {
 	if(params.MakeSleepsLastOneFrame || getFrameTiming() == 0) {
-		unsigned int frames = params.Microframes;
+		int stopAfterFrame = -1;
 		DWORD pt,ct,dt;
-		HRESULT hr;
 
 		if (dwMilliseconds == INFINITE) dwMilliseconds = 30000;
 
 		pt = Real_GetTickCount();
-		while (dwMilliseconds != 0 && frames != 0 && !exitNextFrame) {
+		while (dwMilliseconds != 0 && !exitNextFrame) {
 			Real_WaitForSingleObject(resyncEvent,INFINITE);
 
-			IncrementWaiting();
+			if (stopAfterFrame == -1)
+				stopAfterFrame = getFrameTiming() + params.Microframes - 1;
+			else if (getFrameTiming() > stopAfterFrame)
+				break;
 
-			hr = Real_WaitForSingleObject(nextFrameEvent,dwMilliseconds);
-			if (hr == WAIT_ABANDONED || hr == WAIT_FAILED) dwMilliseconds = frames = 0;
+			IncrementWaiting();
+			Real_WaitForSingleObject(nextFrameEvent,dwMilliseconds);
+			DecrementWaiting();
 
 			ct = Real_GetTickCount();
 			dt = ct - pt;
@@ -331,37 +334,14 @@ VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 				dwMilliseconds -= dt;
 			else
 				dwMilliseconds = 0;
-
-			if (frames > 0)
-				frames--;
-
-			DecrementWaiting();
 		}
 	}
 	else {
-		unsigned int frames;
-		HRESULT hr;
-
-		if (dwMilliseconds == INFINITE) {
-			frames = params.Microframes;
-		}
-		else {
-			frames = UMulDiv(dwMilliseconds,frameRateScaled,frameRateDenom*1000);
-			if (frames > 50) frames = 50; /* FIXME: each wait for a frame is 5-25ms, don't let this get out of hand */
-			if (frames == 0) frames = 1;
-		}
-
-		while (frames != 0 && !exitNextFrame) {
-			Real_WaitForSingleObject(resyncEvent,INFINITE);
-
-			IncrementWaiting();
-			hr = Real_WaitForSingleObject(nextFrameEvent,params.SleepTimeout);
-			if (hr == WAIT_ABANDONED || hr == WAIT_FAILED) dwMilliseconds = frames = 0;
-			DecrementWaiting();
-
-			if (frames > 0)
-				frames--;
-		}
+		// Fiddling with this for more accuracy seems to cause more problems, do what normal KKapture does for now
+		Real_WaitForSingleObject(resyncEvent,INFINITE);
+		IncrementWaiting();
+		Real_WaitForSingleObject(nextFrameEvent,params.SleepTimeout);
+		DecrementWaiting();
 	}
   }
   else
