@@ -1,13 +1,14 @@
 // Copyright (C) 2003, Matt Conover (mconover@gmail.com)
 #ifndef CPU_H
 #define CPU_H
+
+#include <windows.h>
+#include "misc.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 #pragma pack(push,1)
-
-#include <windows.h>
-#include "misc.h"
 
 ////////////////////////////////////////////////////////
 // System descriptors

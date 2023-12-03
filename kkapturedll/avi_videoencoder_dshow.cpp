@@ -640,6 +640,9 @@ struct AVIVideoEncoderDShow::Internal
       HRESULT hr;
 
       // rendering section first
+      // NTS: This is very non-obvious, but if the File Writer cannot create or write to the AVI file you specified,
+      //      this function will return an unintuitive "Class Not Registered" error code. Understand it has nothing
+      //      to do with whether the AVI Mux filter is installed or not.
       hr = build->SetOutputFileName(&MEDIASUBTYPE_Avi,wideName,&mux,0);
 
       // setup full interleaving on mux

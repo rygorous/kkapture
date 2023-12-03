@@ -383,14 +383,15 @@ static void ImplementFlip(IUnknown *surf,int version)
     {
       VideoCaptureDataLock lock;
 
-      if(Blitter.BlitSurfaceToCapture(back,version))
-        encoder->WriteFrame(captureData);
+      if(Blitter.BlitSurfaceToCapture(back,version)) {
+        if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
+	  }
 
       back->Release();
     }
   }
 
-  nextFrame();
+  nextVideoFrame();
 }
 
 static bool GetResolutionFromSurface(IUnknown *surf,int version,int &width,int &height)
@@ -443,11 +444,12 @@ static void ImplementBltToPrimary(IUnknown *surf,int version)
       setCaptureResolution(width,height);
 
     VideoCaptureDataLock lock;
-    if(Blitter.BlitSurfaceToCapture((IDirectDrawSurface *) surf,version))
-      encoder->WriteFrame(captureData);
+    if(Blitter.BlitSurfaceToCapture((IDirectDrawSurface *) surf,version)) {
+      if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
+	}
   }
 
-  nextFrame();
+  nextVideoFrame();
 }
 
 static unsigned char *primaryData=0, *primaryLockPtr=0;
@@ -503,7 +505,7 @@ static void ImplementUnlockPrimary()
         Blitter.BlitOneLine(src,dst,captureWidth);
       }
 
-      encoder->WriteFrame(captureData);
+      if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
     }
 
     // copy from temp buffer to primary surface so user sees what's going on
@@ -515,7 +517,7 @@ static void ImplementUnlockPrimary()
     primaryData = 0;
   }
 
-  nextFrame();
+  nextVideoFrame();
 }
 
 // ---- directdraw 1
@@ -802,7 +804,7 @@ static HRESULT __stdcall Mine_DDrawSurface7_Flip(IUnknown *me,IUnknown *other,DW
 
 static HRESULT __stdcall Mine_DDrawSurface7_Lock(IUnknown *me,LPRECT rect,LPDDSURFACEDESC desc,DWORD flags,HANDLE hnd)
 {
-  HRESULT hr = Real_DDrawSurface_Lock(me,rect,desc,flags,hnd);
+  HRESULT hr = Real_DDrawSurface7_Lock(me,rect,desc,flags,hnd);
   if(SUCCEEDED(hr) && rect == 0 && PrimarySurfaceVersion == 7 && me == PrimarySurface)
     ImplementLockPrimary(me,desc,7);
 

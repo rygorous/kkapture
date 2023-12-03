@@ -37,6 +37,8 @@ struct AVIVideoEncoderVFW::Internal
   WAVEFORMATEX *wfx;
   WAVEFORMATEX *targetFormat;
 
+  FILE *wave;
+
   char basename[_MAX_PATH];
   int segment;
   unsigned long codec;
@@ -238,6 +240,26 @@ void AVIVideoEncoderVFW::StartAudioEncode()
   audioSample = 0;
   audioBytesSample = d->targetFormat->nBlockAlign;
 
+  if(params.CaptureAudio && !d->wave && d->targetFormat)
+  {
+    char name[_MAX_PATH];
+    _snprintf_s(name,_MAX_PATH,_TRUNCATE,"%s.wav",d->basename);
+
+    d->wave = fopen(name,"wb");
+
+    if(d->wave)
+    {
+      static unsigned char header[] = "RIFF\0\0\0\0WAVEfmt ";
+      static unsigned char data[] = "data\0\0\0\0";
+
+      fwrite(header,1,sizeof(header)-1,d->wave);
+      DWORD len = d->targetFormat->cbSize ? sizeof(WAVEFORMATEX)+d->targetFormat->cbSize : sizeof(WAVEFORMATEX)-2;
+      fwrite(&len,1,sizeof(DWORD),d->wave);
+      fwrite(d->targetFormat,1,len,d->wave);
+      fwrite(data,1,sizeof(data)-1,d->wave);
+    }
+  }
+
   // fill already written frames with no sound
   int fillBytesSample = d->wfx->nBlockAlign;
   unsigned char *buffer = new unsigned char[fillBytesSample * 1024];
@@ -267,6 +289,7 @@ AVIVideoEncoderVFW::AVIVideoEncoderVFW(const char *name,int _fpsNum,int _fpsDeno
   fpsDenom = _fpsDenom;
 
   d = new Internal;
+  d->wave = NULL;
   d->file = 0;
   d->vid = 0;
   d->vidC = 0;
@@ -305,6 +328,24 @@ AVIVideoEncoderVFW::~AVIVideoEncoderVFW()
 {
   Cleanup();
   DeleteCriticalSection(&d->lock);
+
+  if(d->wave)
+  {
+    // finish the wave file by writing overall and data chunk lengths
+    long fileLen = ftell(d->wave);
+
+    long riffLen = fileLen - 8;
+    fseek(d->wave,4,SEEK_SET);
+    fwrite(&riffLen,1,sizeof(long),d->wave);
+
+    long dataLen = fileLen - 44;
+    fseek(d->wave,40,SEEK_SET);
+    fwrite(&dataLen,1,sizeof(long),d->wave);
+
+    fclose(d->wave);
+    d->wave = NULL;
+  }
+
   delete[] (unsigned char*) d->wfx;
   delete[] (unsigned char*) d->targetFormat;
 
@@ -392,6 +433,9 @@ void AVIVideoEncoderVFW::WriteAudioFrame(const void *buffer,int samples)
         outSamples*audioBytesSample,0,0,&written);
       audioSample += outSamples;
       d->overflowCounter += written;
+
+	  if (d->wave)
+		  fwrite(buffer,d->targetFormat->nBlockAlign,samples,d->wave);
     }
   }
 }

@@ -58,12 +58,12 @@ VideoEncoder *createVideoEncoder(const char *filename)
     break;
 
   case AVIEncoderVFW:
-    encoder = new AVIVideoEncoderVFW(filename,frameRateScaled,frameRateDenom,params.VideoCodec,params.VideoQuality);
+	  encoder = new AVIVideoEncoderVFW(filename,frameRateScaled/params.Microframes,frameRateDenom,params.VideoCodec,params.VideoQuality);
     break;
 
 #if USE_DSHOW_AVI_WRITER
   case AVIEncoderDShow:
-    encoder = new AVIVideoEncoderDShow(filename,frameRateScaled,frameRateDenom,params.VideoCodec,params.VideoQuality);
+    encoder = new AVIVideoEncoderDShow(filename,frameRateScaled/params.Microframes,frameRateDenom,params.VideoCodec,params.VideoQuality);
     break;
 #endif
 
@@ -132,6 +132,34 @@ void videoNeedEncoder()
     encoder = createVideoEncoder(params.FileName);
     printLog("main: video encoder initialized.\n");
   }
+}
+
+extern "C" __declspec(dllexport) bool ST_initEncoder() {
+       videoNeedEncoder();
+       return (encoder != NULL);
+}
+
+extern "C" __declspec(dllexport) void ST_freeEncoder() {
+       if (encoder) {
+               delete encoder;
+               encoder = 0;
+       }
+}
+
+extern "C" __declspec(dllexport) void ST_SetVideoSize(int xRes,int yRes) {
+       if (encoder) encoder->SetSize(xRes,yRes);
+}
+
+extern "C" __declspec(dllexport) void ST_SetAudioFormat(const struct tWAVEFORMATEX *fmt) {
+       if (encoder) encoder->SetAudioFormat(fmt);
+}
+
+extern "C" __declspec(dllexport) void ST_WriteFrame(const unsigned char *buffer) {
+       if (encoder) encoder->WriteFrame(buffer);
+}
+
+extern "C" __declspec(dllexport) void ST_WriteAudioFrame(const void *buffer,int samples) {
+       if (encoder) encoder->WriteAudioFrame(buffer,samples);
 }
 
 // capture buffer
@@ -210,6 +238,13 @@ void nextFrame()
   nextFrameSound();
 }
 
+// advance video frame
+void nextVideoFrame() {
+	do {
+		nextFrame();
+	} while ((getFrameTiming() % params.Microframes) != 0);
+}
+
 // skip this frame (same as nextFrame(), but duplicating old frame data)
 void skipFrame()
 {
@@ -218,8 +253,9 @@ void skipFrame()
     VideoCaptureDataLock lock;
 
     // write the old frame again
-    if(encoder && params.CaptureVideo)
-      encoder->WriteFrame(captureData);
+    if(encoder && params.CaptureVideo) {
+      if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
+	}
   }
 
   nextFrame();
@@ -498,6 +534,38 @@ void GenericBlitter::BlitOneLine(unsigned char *src,unsigned char *dst,int count
   }
 }
 
+
+
+static BOOL (__stdcall *Real_EnumDisplaySettingsEx)(LPCTSTR lpszDeviceName, DWORD iModeNum, DEVMODE *lpDevMode, DWORD dwFlags) = EnumDisplaySettingsExA;
+static LRESULT (__stdcall *Real_DefWindowProc)(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) = DefWindowProcA;
+
+static BOOL __stdcall Mine_EnumDisplaySettingsEx(LPCTSTR lpszDeviceName, DWORD iModeNum, DEVMODE *lpDevMode, DWORD dwFlags) {
+  BOOL result = Real_EnumDisplaySettingsEx(lpszDeviceName, iModeNum, lpDevMode, dwFlags);
+  if (!result) {
+    result = Real_EnumDisplaySettingsEx(lpszDeviceName, iModeNum - 1, lpDevMode, dwFlags);
+    if (result) {
+      lpDevMode->dmFields = DM_PELSWIDTH | DM_PELSHEIGHT | DM_BITSPERPEL | DM_DISPLAYFREQUENCY | DM_DISPLAYFLAGS;
+      lpDevMode->dmPelsWidth = params.ExtraScreenWidth;
+      lpDevMode->dmPelsHeight = params.ExtraScreenHeight;
+      lpDevMode->dmBitsPerPel = 32;
+      lpDevMode->dmDisplayFrequency = 60;
+      lpDevMode->dmDisplayFlags = 0;
+    }
+  }
+  return result;
+}
+
+static LRESULT __stdcall Mine_DefWindowProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam) {
+  if (Msg == WM_GETMINMAXINFO) {
+    ((MINMAXINFO*)lParam)->ptMaxTrackSize.x = 32767;
+    ((MINMAXINFO*)lParam)->ptMaxTrackSize.y = 32767;
+    return 0;
+  }
+  return Real_DefWindowProc(hWnd, Msg, wParam, lParam);
+}
+
+
+
 // public interface
 void initVideo()
 {
@@ -507,11 +575,16 @@ void initVideo()
   partCounter = 1;
   seenFrames = false;
 
-	initVideo_OpenGL();
-	initVideo_Direct3D8();
-	initVideo_Direct3D9();
+  if (params.ExtraScreenMode) {
+    HookFunction(&Real_EnumDisplaySettingsEx,Mine_EnumDisplaySettingsEx);
+    HookFunction(&Real_DefWindowProc,Mine_DefWindowProc);
+  }
+
+  initVideo_OpenGL();
+  initVideo_Direct3D8();
+  initVideo_Direct3D9();
   initVideo_Direct3D10();
-	initVideo_DirectDraw();
+  initVideo_DirectDraw();
   initVideo_GDI();
 }
 

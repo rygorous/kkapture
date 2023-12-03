@@ -20,17 +20,65 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/* Demo TODO list:
+
+-- "Realtime Radiosity 2" by Broncs
+
+   Uses: DirectX, DirectDraw 1 (maybe 2)?
+
+   Problem: The demo animation will always time itself based on your
+            monitor refresh rate. The demo is able to determine the
+            refresh rate in a way KKapture cannot intercept. If you
+            attempt to KKapture at any frame rate other than your
+            monitor refresh rate, the demo animations will run too
+            fast, or too slow.
+
+   Ideal fix: Figure out any and all methods that a demo would determine
+              monitor refresh rate and intercept them so that all reported
+              refresh rates reflect the frame rate entered by the user.
+
+   Workaround: Enter only the refresh rate of your monitor for the frame
+               rate, or use your system display settings to change the
+               refresh rate to a value as close as possible to the refresh
+               rate you want and then enter that as your frame rate.
+
+   Problem: The demo will run in a tiny "window" inside the middle of
+            the screen, because modern Windows drivers (anything since
+            about 2006) no longer support the pixel-doubled low res modes
+            of old (320x200, 320x240, 512x384, etc). This is not specific
+            to Windows Vista as there are late era Windows XP drivers that
+            also dropped support for those modes. The demo uses (I think)
+            a 400x300 mode (800x600 with pixel doubling).
+
+    Ideal fix: Perhaps the DirectDraw "virtual framebuffer" mode could
+               fake it and pixel double to the real display AND to the
+               AVI file. If enabled by the user, of course.
+
+    Workaround: Let the demo render a tiny box in the middle of a 640x480
+                display, and then, in your video editing software, crop
+                to the actual display area and zoom up. You might use
+                FFMPEG's crop filter, and then scaler filter with
+                "nearest neighbor" interpolation to scale up to exactly
+                2x the original size to emulate how it would originally
+                look on CRT monitors of the time.
+*/
+
 #include "stdafx.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <tchar.h>
+#include <math.h>
 #include "../kkapturedll/main.h"
 #include "../kkapturedll/intercept.h"
 #include "resource.h"
 
 #pragma comment(lib,"vfw32.lib")
 #pragma comment(lib,"msacm32.lib")
+
+#ifndef M_PI
+# define M_PI 3.14159265358979323846
+#endif M_PI
 
 #define COUNTOF(x) (sizeof(x)/sizeof(*x))
 
@@ -98,6 +146,7 @@ static void LoadSettingsFromRegistry()
   if(RegOpenKeyEx(HKEY_CURRENT_USER,RegistryKeyName,0,KEY_READ,&hk) != ERROR_SUCCESS)
     hk = 0;
 
+  Params.IsSelfTest = false; // never store in registry
   Params.FrameRateNum = RegQueryDWord(hk,_T("FrameRate"),6000);
   Params.FrameRateDenom = RegQueryDWord(hk,_T("FrameRateDenom"),100);
   Params.Encoder = (EncoderType) RegQueryDWord(hk,_T("VideoEncoder"),AVIEncoderVFW);
@@ -112,6 +161,12 @@ static void LoadSettingsFromRegistry()
   Params.EnableGDICapture = RegQueryDWord(hk,_T("EnableGDICapture"),0);
   Params.FrequentTimerCheck = RegQueryDWord(hk,_T("FrequentTimerCheck"),1);
   Params.VirtualFramebuffer = RegQueryDWord(hk,_T("VirtualFramebuffer"),0);
+  Params.ExtraScreenMode = FALSE;  // don't store that in the registry
+  Params.ExtraScreenWidth = RegQueryDWord(hk,_T("ExtraScreenWidth"),1920);
+  Params.ExtraScreenHeight = RegQueryDWord(hk,_T("ExtraScreenHeight"),1080);
+  Params.ForceDPIAware = RegQueryDWord(hk,_T("ForceDPIAware"),0);
+  Params.PreventTopmostWindow = RegQueryDWord(hk,_T("PreventTopmostWindow"),1);
+  Params.Microframes = RegQueryDWord(hk,_T("Microframes"),0);
 
   if(hk)
     RegCloseKey(hk);
@@ -136,6 +191,11 @@ static void SaveSettingsToRegistry()
     RegSetDWord(hk,_T("UseEncoderThread"),Params.UseEncoderThread);
     RegSetDWord(hk,_T("FrequentTimerCheck"),Params.FrequentTimerCheck);
     RegSetDWord(hk,_T("VirtualFramebuffer"),Params.VirtualFramebuffer);
+    RegSetDWord(hk,_T("ExtraScreenWidth"),Params.ExtraScreenWidth);
+    RegSetDWord(hk,_T("ExtraScreenHeight"),Params.ExtraScreenHeight);
+	RegSetDWord(hk,_T("ForceDPIAware"),Params.ForceDPIAware);
+	RegSetDWord(hk,_T("PreventTopmostWindow"),Params.PreventTopmostWindow);
+	RegSetDWord(hk,_T("Microfames"),Params.Microframes);
     RegCloseKey(hk);
   }
 }
@@ -308,6 +368,21 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
       CheckDlgButton(hWndDlg,IDC_ENCODERTHREAD,Params.UseEncoderThread ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_CAPTUREGDI,Params.EnableGDICapture ? BST_CHECKED : BST_UNCHECKED);
       CheckDlgButton(hWndDlg,IDC_VIRTFRAMEBUF,Params.VirtualFramebuffer ? BST_CHECKED : BST_UNCHECKED);
+	  CheckDlgButton(hWndDlg,IDC_FORCEDPIAWARE,Params.ForceDPIAware ? BST_CHECKED : BST_UNCHECKED);
+	  CheckDlgButton(hWndDlg,IDC_PREVENTTOPMOST,Params.PreventTopmostWindow ? BST_CHECKED : BST_UNCHECKED);
+
+      CheckDlgButton(hWndDlg,IDC_EXTRASCREENMODE,Params.ExtraScreenMode ? BST_CHECKED : BST_UNCHECKED);
+      EnableDlgItem(hWndDlg,IDC_EXTRASCREENWIDTH,Params.ExtraScreenMode ? TRUE : FALSE);
+      EnableDlgItem(hWndDlg,IDC_EXTRASCREENX,Params.ExtraScreenMode ? TRUE : FALSE);
+      EnableDlgItem(hWndDlg,IDC_EXTRASCREENHEIGHT,Params.ExtraScreenMode ? TRUE : FALSE);
+      _itoa(Params.ExtraScreenWidth,buffer,10);
+      SetDlgItemText(hWndDlg,IDC_EXTRASCREENWIDTH,buffer);
+      _itoa(Params.ExtraScreenHeight,buffer,10);
+      SetDlgItemText(hWndDlg,IDC_EXTRASCREENHEIGHT,buffer);
+	  if (Params.Microframes != 0) {
+	    _itoa(Params.Microframes,buffer,10);
+	    SetDlgItemText(hWndDlg,IDC_MICROFRAMES,buffer);
+	  }
 
       EditBoxEnableDragDrop(GetDlgItem(hWndDlg,IDC_DEMO));
       EditBoxEnableDragDrop(GetDlgItem(hWndDlg,IDC_TARGET));
@@ -335,6 +410,8 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         TCHAR frameRateStr[64];
         TCHAR firstFrameTimeout[64];
         TCHAR otherFrameTimeout[64];
+        TCHAR extraScreenWidthStr[12], extraScreenHeightStr[12];
+		TCHAR microFramesStr[12];
 
         Params.VersionTag = PARAMVERSION;
 
@@ -345,15 +422,22 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         GetDlgItemText(hWndDlg,IDC_FRAMERATE,frameRateStr,sizeof(frameRateStr)/sizeof(*frameRateStr));
         GetDlgItemText(hWndDlg,IDC_FIRSTFRAMETIMEOUT,firstFrameTimeout,sizeof(firstFrameTimeout)/sizeof(*firstFrameTimeout));
         GetDlgItemText(hWndDlg,IDC_OTHERFRAMETIMEOUT,otherFrameTimeout,sizeof(otherFrameTimeout)/sizeof(*otherFrameTimeout));
+        GetDlgItemText(hWndDlg,IDC_EXTRASCREENWIDTH,extraScreenWidthStr,sizeof(extraScreenWidthStr)/sizeof(*extraScreenWidthStr));
+        GetDlgItemText(hWndDlg,IDC_EXTRASCREENHEIGHT,extraScreenHeightStr,sizeof(extraScreenHeightStr)/sizeof(*extraScreenHeightStr));
+        GetDlgItemText(hWndDlg,IDC_MICROFRAMES,microFramesStr,sizeof(microFramesStr)/sizeof(*microFramesStr));
 
         BOOL autoSkip = IsDlgButtonChecked(hWndDlg,IDC_AUTOSKIP) == BST_CHECKED;
 
         // validate everything and fill out parameter block
-        HANDLE hFile = CreateFile(ExeName,GENERIC_READ,0,0,OPEN_EXISTING,0,0);
-        if(hFile == INVALID_HANDLE_VALUE)
-          return !ErrorMsg(_T("You need to specify a valid executable in the 'demo' field."),hWndDlg);
-        else
-          CloseHandle(hFile);
+
+        // Demo EXE not required if the self-test box was checked
+        if (IsDlgButtonChecked(hWndDlg,IDC_SELFTEST) != BST_CHECKED) {
+          HANDLE hFile = CreateFile(ExeName,GENERIC_READ,0,0,OPEN_EXISTING,0,0);
+          if(hFile == INVALID_HANDLE_VALUE)
+            return !ErrorMsg(_T("You need to specify a valid executable in the 'demo' field."),hWndDlg);
+          else
+            CloseHandle(hFile);
+		}
 
         int frameRateNum,frameRateDenom;
         if(!ParsePositiveRational(frameRateStr,frameRateNum,frameRateDenom)
@@ -379,6 +463,9 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         Params.FrameRateDenom = frameRateDenom;
         Params.Encoder = (EncoderType) (1 + SendDlgItemMessage(hWndDlg,IDC_ENCODER,CB_GETCURSEL,0,0));
 
+		Params.PreventTopmostWindow = IsDlgButtonChecked(hWndDlg,IDC_PREVENTTOPMOST) == BST_CHECKED;
+		Params.ForceDPIAware = IsDlgButtonChecked(hWndDlg,IDC_FORCEDPIAWARE) == BST_CHECKED;
+		Params.IsSelfTest = IsDlgButtonChecked(hWndDlg,IDC_SELFTEST) == BST_CHECKED;
         Params.CaptureVideo = IsDlgButtonChecked(hWndDlg,IDC_VCAPTURE) == BST_CHECKED;
         Params.CaptureAudio = IsDlgButtonChecked(hWndDlg,IDC_ACAPTURE) == BST_CHECKED;
         Params.SoundMaxSkip = IsDlgButtonChecked(hWndDlg,IDC_SKIPSILENCE) == BST_CHECKED ? 10 : 0;
@@ -392,6 +479,13 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         Params.UseEncoderThread = IsDlgButtonChecked(hWndDlg,IDC_ENCODERTHREAD) == BST_CHECKED;
         Params.EnableGDICapture = IsDlgButtonChecked(hWndDlg,IDC_CAPTUREGDI) == BST_CHECKED;
         Params.VirtualFramebuffer = IsDlgButtonChecked(hWndDlg,IDC_VIRTFRAMEBUF) == BST_CHECKED;
+        Params.ExtraScreenMode = IsDlgButtonChecked(hWndDlg,IDC_EXTRASCREENMODE) == BST_CHECKED;
+        Params.ExtraScreenWidth = atoi(extraScreenWidthStr);
+        Params.ExtraScreenHeight = atoi(extraScreenHeightStr);
+		Params.Microframes = atoi(microFramesStr);
+        if (!Params.ExtraScreenWidth || !Params.ExtraScreenHeight || (Params.ExtraScreenWidth > 32767) || (Params.ExtraScreenHeight > 32767)) {
+            Params.ExtraScreenMode = FALSE;
+        }
 
         // save settings for next time
         SaveSettingsToRegistry();
@@ -493,6 +587,16 @@ static INT_PTR CALLBACK MainDialogProc(HWND hWndDlg,UINT uMsg,WPARAM wParam,LPAR
         EnableDlgItem(hWndDlg,IDC_OTHERFRAMETIMEOUT,enable);
       }
       return TRUE;
+
+    case IDC_EXTRASCREENMODE:
+      {
+        BOOL enable = IsDlgButtonChecked(hWndDlg,IDC_EXTRASCREENMODE) == BST_CHECKED;
+        EnableDlgItem(hWndDlg,IDC_EXTRASCREENWIDTH,enable);
+        EnableDlgItem(hWndDlg,IDC_EXTRASCREENX,enable);
+        EnableDlgItem(hWndDlg,IDC_EXTRASCREENHEIGHT,enable);
+      }
+      return TRUE;
+
     }
     break;
   }
@@ -526,6 +630,119 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
     _tcscat(commandLine,ExeName);
     _tcscat(commandLine,_T("\" "));
     _tcscat(commandLine,Arguments);
+
+       if (Params.IsSelfTest) {
+               // self-test mode: KKapture calls the DLL directly, synthesizes audio and video
+               // and calls the AVI writer code directly as a means to easily test and debug
+               // that code without ever having to do a delicate debugger dance and possibly
+               // have to debug with a screen resolution that is too low to work with the
+               // debugger (i.e. 640x480).
+               // Note that KKapture.exe already loads KKapturedll.dll as a depdency, so there
+               // is no need to use LoadLibrary().
+               ST_init(); // trigger the init() function again, this time with a valid param block
+
+               if (!ST_initEncoder())
+                       return 1;
+
+               int xRes = 640,yRes = 480;
+
+			   // If the user entered an extra screen mode, use THAT for xRes and yRes
+			   if (Params.ExtraScreenMode) {
+				   xRes = (Params.ExtraScreenWidth + 3) & ~3u; // round up to multiple of 4
+				   yRes = Params.ExtraScreenHeight;
+			   }
+
+               if (xRes < 4 || yRes < 1 || xRes > 4096 || yRes > 4096 || (xRes % 4) != 0)
+                       return 1;
+
+               unsigned char wfx_raw[sizeof(WAVEFORMATEXTENSIBLE)];//just in case
+               WAVEFORMATEX *wfx = (WAVEFORMATEX*)wfx_raw;
+               memset(wfx_raw,0,sizeof(wfx_raw));
+
+               wfx->wFormatTag = WAVE_FORMAT_PCM;
+               wfx->wBitsPerSample = 16;//TODO: Provide a way for the user to specify this!
+               wfx->nSamplesPerSec = 44100;//TODO: Provide a way for the user to specify this!
+               wfx->nChannels = 2;//TODO: Provide a way for the user to specify this!
+
+               wfx->cbSize = 0;
+               wfx->nBlockAlign = wfx->nChannels * ((wfx->wBitsPerSample+7)/8);
+               wfx->nAvgBytesPerSec = wfx->nBlockAlign * wfx->nSamplesPerSec;
+
+               ST_SetVideoSize(xRes,yRes);
+               ST_SetAudioFormat(wfx);
+
+               // allocate frame and audio. Everything in this codebase is based around 24bpp RGB.
+               unsigned char *frame = new unsigned char[xRes*yRes*3];
+
+               const unsigned int samplecount_adv_m = (unsigned long long)Params.FrameRateNum;
+               const unsigned int samplecount_adv_w = (unsigned int)(((unsigned long long)wfx->nSamplesPerSec * (unsigned long long)Params.FrameRateDenom) / (unsigned long long)Params.FrameRateNum);
+               const unsigned int samplecount_adv_f = (unsigned int)(((unsigned long long)wfx->nSamplesPerSec * (unsigned long long)Params.FrameRateDenom) % (unsigned long long)Params.FrameRateNum);
+               unsigned int samplecount_w = 0;
+               unsigned int samplecount_f = 0;
+               unsigned char *audio = new unsigned char[(samplecount_adv_w + 1) * wfx->nBlockAlign];
+
+               // Go!
+               for (unsigned long fn=0;fn < 1000;fn++) {
+                       unsigned int samples = samplecount_adv_w;
+                       samplecount_f += samplecount_adv_f;
+                       if (samplecount_f >= samplecount_adv_m) {
+                               samplecount_f -= samplecount_adv_m;
+                               samples++;
+                       }
+                       if (samples > (samplecount_adv_w+1)) return 1;
+
+                       // Make video frame. The bitmap is "normal" in that the scanlines are "upside down" like a normal bitmap.
+                       {
+                               int vy=0;
+
+                               for (;vy < (yRes/2);vy++) {
+                                       unsigned char *drow = frame + (xRes*3*(yRes-1-vy)/*upside down*/);
+                                       for (int vx=0;vx < xRes;vx++) {
+                                               const unsigned int scx = ((vx+fn) * 256 * 4) / xRes; // red/green/blue/white ramps move to the left
+                                               drow[0] = ((scx&0x300) == 0x200 || (scx&0x300) == 0x300) ? (scx & 0xFF) : 0;//blue
+                                               drow[1] = ((scx&0x300) == 0x100 || (scx&0x300) == 0x300) ? (scx & 0xFF) : 0;//green
+                                               drow[2] = ((scx&0x300) == 0x000 || (scx&0x300) == 0x300) ? (scx & 0xFF) : 0;//red
+                                               drow += 3;
+                                       }
+                               }
+
+                               for (;vy < yRes;vy++) {
+                                       unsigned char *drow = frame + (xRes*3*(yRes-1-vy)/*upside down*/);
+                                       for (int vx=0;vx < xRes;vx++) {
+                                               const unsigned int xx = vx-fn;
+                                               const unsigned int scx = ((vy-(yRes/2)) * 4) / ((yRes+1)/2); // red/green/blue/white XOR patterns move to the right
+                                               drow[0] = (scx == 2 || scx == 3) ? ((xx^vy)&0xFF) : 0;//blue
+                                               drow[1] = (scx == 1 || scx == 3) ? ((xx^vy)&0xFF) : 0;//green
+                                               drow[2] = (scx == 0 || scx == 3) ? ((xx^vy)&0xFF) : 0;//red
+                                               drow += 3;
+                                       }
+                               }
+                       }
+
+                       // make audio
+                       if (wfx->wBitsPerSample == 16) {
+                               // signed short int == 16 bits
+                               signed short int *w = (signed short int*)audio;
+                               for (unsigned int s=0;s < samples;s++) {
+                                       const double sa = ((double)samplecount_w * M_PI * 2.0 * 1000.0) / wfx->nSamplesPerSec; // 1000Hz test tone
+                                       const signed short int sv = (signed short int)(sin(sa) * 32767.0 * 0.25); // don't make it loud, please
+
+                                       samplecount_w++;
+                                       for (unsigned int c=0;c < wfx->nChannels;c++) *w++ = sv;
+                               }
+                       }
+
+                       ST_WriteFrame(frame);
+                       ST_WriteAudioFrame(audio,samples);
+               }
+
+               // done
+               delete[] audio;
+               delete[] frame;
+               ST_freeEncoder();
+       }
+       else {
+               // normal KKapture injection into target demo process
 
     // create process
 	  STARTUPINFOA si;
@@ -564,6 +781,7 @@ int WINAPI WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,i
 
     // cleanup
     CloseHandle(pi.hProcess);
+	}
     CloseHandle(hParamMapping);
   }
 

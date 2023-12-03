@@ -158,13 +158,14 @@ static HRESULT __stdcall Mine_SwapChain_Present(IDXGISwapChain *me,UINT SyncInte
 
   if(params.CaptureVideo)
   {
-    if (grabFrameD3D11(me) || grabFrameD3D10(me))
-      encoder->WriteFrame(captureData);
+    if (grabFrameD3D10(me) || grabFrameD3D11(me)) {
+		if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
+	}
   }
 
   HRESULT hr = Real_SwapChain_Present(me,0,Flags);
 
-  nextFrame();
+  nextVideoFrame();
   return hr;
 }
 

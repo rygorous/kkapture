@@ -287,21 +287,65 @@ static void DecrementWaiting()
 // --- everything that sleeps may accidentially take more than one frame.
 // this causes soundsystems to bug, so we have to fix it here.
 
+// NOTES: "Wonder" by Sunflower uses Sleep(30) in its audio handling thread to keep time with
+//        the sound card. This must be propely maintained or the audio will stutter or run way
+//        too fast and then graphics skip out of confusion. The demo sound library supports
+//        DirectSound and will use this sense of timing for the audio buffer. If you select the
+//        waveOut* support instead, it sets up one WAVEHDR buffer which it then sets the
+//        WHDR_BEGINLOOP|WHDR_ENDLOOP flags apparently to mimic DirectSound looping buffer
+//        behavior with waveOutWrite and such. This method of audio output is good enough that
+//        it happens to work but you might hear erratic audio errors every now and then.
+//        On a Windows 7 system, the audio is OK but glitches out about once every 1-2 minutes.
+//        Windows 11 doesn't handle it well at all. You get the proper sound but it's constantly
+//        a bit glitchy. For this reason, this is one of the few demos where you want to explicitly
+//        clear the "Make sleep last one frame" option because setting it throws audio timing way
+//        off.
+
 VOID __stdcall Mine_Sleep(DWORD dwMilliseconds)
 {
-  if(dwMilliseconds)
+  // Bugfix: Standard Windows common controls will stall a lot if we enforce Sleep() policy here at all times,
+  //         at least in Windows 11, where the dropdown control will call Sleep(1) when you click the down arrow.
+  if(dwMilliseconds >= 2)
   {
-    Real_WaitForSingleObject(resyncEvent,INFINITE);
+	if(params.MakeSleepsLastOneFrame || getFrameTiming() == 0) {
+		int stopAfterFrame = -1;
+		DWORD pt,ct,dt;
 
-    IncrementWaiting();
-    if(params.MakeSleepsLastOneFrame)
-      Real_WaitForSingleObject(nextFrameEvent,dwMilliseconds);
-    else
-      Real_WaitForSingleObject(nextFrameEvent,params.SleepTimeout);
-    DecrementWaiting();
+		if (dwMilliseconds == INFINITE) dwMilliseconds = 30000;
+
+		pt = Real_GetTickCount();
+		while (dwMilliseconds != 0 && !exitNextFrame) {
+			Real_WaitForSingleObject(resyncEvent,INFINITE);
+
+			if (stopAfterFrame == -1)
+				stopAfterFrame = getFrameTiming() + params.Microframes - 1;
+			else if (getFrameTiming() > stopAfterFrame)
+				break;
+
+			IncrementWaiting();
+			Real_WaitForSingleObject(nextFrameEvent,dwMilliseconds);
+			DecrementWaiting();
+
+			ct = Real_GetTickCount();
+			dt = ct - pt;
+			pt = ct;
+
+			if (dwMilliseconds >= dt)
+				dwMilliseconds -= dt;
+			else
+				dwMilliseconds = 0;
+		}
+	}
+	else {
+		// Fiddling with this for more accuracy seems to cause more problems, do what normal KKapture does for now
+		Real_WaitForSingleObject(resyncEvent,INFINITE);
+		IncrementWaiting();
+		Real_WaitForSingleObject(nextFrameEvent,params.SleepTimeout);
+		DecrementWaiting();
+	}
   }
   else
-    Real_Sleep(0);
+    Real_Sleep(dwMilliseconds);
 }
 
 DWORD __stdcall Mine_WaitForSingleObject(HANDLE hHandle,DWORD dwMilliseconds)

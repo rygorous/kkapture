@@ -311,6 +311,7 @@ class MyDirectSoundBuffer8 : public IDirectSoundBuffer8
   PBYTE Buffer;
   DWORD Flags;
   DWORD Bytes;
+  DWORD BytesAlloc;
   WAVEFORMATEX *Format;
   DWORD Frequency;
   BOOL Playing,Looping;
@@ -338,7 +339,9 @@ class MyDirectSoundBuffer8 : public IDirectSoundBuffer8
     if(!Playing)
       return 0;
 
-    return (PlayCursor + 128 * Format->nBlockAlign) % Bytes;
+	/* TODO: Make this an option: Whether to emulate an "emulated" DirectSound device or a DirectSound device that is actual hardware */
+	/* Microsoft documented legacy DirectSound behavior where it concerns "emulated" DirectSound devices */
+	return (PlayCursor + ((Format->nSamplesPerSec * 15/*ms*/) / 1000) * Format->nBlockAlign) % Bytes;
   }
 
 public:
@@ -347,7 +350,7 @@ public:
   {
     Flags = flags;
     Buffer = new BYTE[bufBytes];
-    Bytes = bufBytes;
+    Bytes = BytesAlloc = bufBytes;
     memset(Buffer,0,bufBytes);
 
     if(fmt)
@@ -363,6 +366,9 @@ public:
       Format->wBitsPerSample = 16;
       Format->cbSize = 0;
     }
+
+	// Some demos ask for 16-bit stereo PCM (nBlockAlign) from a buffer that is not a multiple of nBlockAlign (Wonder by Sunflower)
+	Bytes = BytesAlloc - (BytesAlloc % Format->nBlockAlign);
 
     Frequency = Format->nSamplesPerSec;
 
@@ -386,8 +392,8 @@ public:
     }
 
     DeleteCriticalSection(&BufferLock);
-    delete Format;
-    delete[] Buffer;
+    delete Format; Format = NULL;
+    delete[] Buffer; Buffer = NULL;
   }
 
   // IUnknown methods
@@ -629,10 +635,13 @@ public:
 
   virtual HRESULT __stdcall SetFormat(LPCWAVEFORMATEX pcfxFormat)
   {
-    delete Format;
+    delete Format; Format = NULL;
     Format = CopyFormat(pcfxFormat);
     if(playBuffer==this)
       encoder->SetAudioFormat(Format);
+
+	// Some demos ask for 16-bit stereo PCM (nBlockAlign) from a buffer that is not a multiple of nBlockAlign (Wonder by Sunflower)
+	Bytes = BytesAlloc - (BytesAlloc % Format->nBlockAlign);
 
     return S_OK;
   }
@@ -775,7 +784,7 @@ public:
 
   virtual HRESULT __stdcall GetCaps(LPDSCAPS pDSCaps)
   {
-    if(pDSCaps && pDSCaps->dwSize == sizeof(DSCAPS))
+    if(pDSCaps && pDSCaps->dwSize >= sizeof(DSCAPS))
     {
       ZeroMemory(pDSCaps,sizeof(DSCAPS));
 
@@ -1004,7 +1013,7 @@ public:
 
   ~WaveOutImpl()
   {
-    delete Format;
+    delete Format; Format = NULL;
     callbackMessage(WOM_CLOSE,0,0);
   }
 
@@ -1044,6 +1053,15 @@ public:
     return MMSYSERR_NOERROR;
   }
 
+  // FIXME: "Wonder" by Sunflower does not render audio properly here
+  //        because when you use the Wave multimedia setting (not DirectSound)
+  //        the demo prepares and submits one WAVEHDR block with WHDR_PREPARED|WHDR_BEGINLOOP|WHDR_ENDLOOP
+  //        set. Meaning, if you don't use DirectSound mode, it uses the waveOut API to play a
+  //        circular audio buffer anyway. Apparently this happened to work on whatever Windows 95 or
+  //        Windows 98 system that demo was written for, but it doesn't work well on Windows 7, it works
+  //        worse on Windows 11, and completely fails within this virtualization (plays very fast and the
+  //        demo periodically skips forward). The DirectSound mode is handled just as badly here and is no
+  //        better at this time.
   MMRESULT write(WAVEHDR *hdr,UINT size)
   {
     if(!hdr || size != sizeof(WAVEHDR))
@@ -1054,6 +1072,9 @@ public:
 
     if(hdr->dwFlags & WHDR_INQUEUE)
       return MMSYSERR_NOERROR;
+
+	// Some demos ask for 16-bit stereo PCM (nBlockAlign) from a buffer that is not a multiple of nBlockAlign (Wonder by Sunflower)
+	hdr->dwBufferLength -= hdr->dwBufferLength % Format->nBlockAlign;
 
     // enqueue
     if(!FrameInitialized) // officially start playback!
@@ -1195,7 +1216,7 @@ public:
     DWORD sampleNew = UMulDiv(frame,Format->nSamplesPerSec * frameRateDenom,frameRateScaled);
     DWORD sampleCount = sampleNew - CurrentSamplePos;
 
-    if(!Current || Paused) // write one frame of no audio
+    if(!Current || Paused || !sampleCount) // write one frame of no audio
     {
       encodeNoAudio(sampleCount);
 
@@ -1209,6 +1230,8 @@ public:
         int smps = min(sampleCount,(Current->dwBufferLength - CurrentBufferPos) / align);
         if(smps)
           encoder->WriteAudioFrame((PBYTE) Current->lpData + CurrentBufferPos,smps);
+		else
+		  break; // Wonder by Sunflower uses 16-bit stereo and dwBufferLength not a multiple of align
 
         sampleCount -= smps;
         CurrentBufferPos += smps * align;
@@ -1411,12 +1434,20 @@ struct BASS_INFO
 };
 
 static BOOL (__stdcall *Real_BASS_Init)(int device,DWORD freq,DWORD flags,HWND win,GUID *clsid) = 0;
+static BOOL (__stdcall *Real_BASS_Init4)(int device,DWORD freq,DWORD flags,HWND win) = 0;
 static BOOL (__stdcall *Real_BASS_GetInfo)(BASS_INFO *info) = 0;
 
 static BOOL __stdcall Mine_BASS_Init(int device,DWORD freq,DWORD flags,HWND win,GUID *clsid)
 {
   // for BASS, all we need to do is make sure that the BASS_DEVICE_LATENCY flag is cleared.
   return Real_BASS_Init(device,freq,flags & ~256,win,clsid);
+}
+
+/* older versions of BASS.DLL where GetVersion() returns something like 0x00060001 */
+static BOOL __stdcall Mine_BASS_Init4(int device,DWORD freq,DWORD flags,HWND win)
+{
+  // for BASS, all we need to do is make sure that the BASS_DEVICE_LATENCY flag is cleared.
+  return Real_BASS_Init4(device,freq,flags & ~256,win);
 }
 
 static BOOL __stdcall Mine_BASS_GetInfo(BASS_INFO *info)
@@ -1426,12 +1457,33 @@ static BOOL __stdcall Mine_BASS_GetInfo(BASS_INFO *info)
   return res;
 }
 
+// NTS: Based on some older 1999-2001-ish demos, BASS changed the BASS_Init() function slightly
+//      by adding a parameter. If we don't pay attention to this, then our hook will only cause
+//      crashes by mismanaging the stack.
+//
+//      The older BASS_Init() appears to have four parameters, while newer ones (that this code
+//      was originally written for) have the 5th "CLSID" parameter.
+static DWORD BASS_Version = 0;
+
 static void initSoundsysBASS()
 {
   HMODULE bassDll = LoadLibraryA("bass.dll");
+  if(bassDll) {
+    DWORD (*__BASS_GetVersion)() = (DWORD (*)())GetProcAddress(bassDll,"BASS_GetVersion");
+    if (__BASS_GetVersion) BASS_Version = __BASS_GetVersion();
+
+    printLog("sound/bass: bass.dll version 0x%08lx\n",(unsigned long)BASS_Version);
+    if (BASS_Version >= 0x01000000/*newer*/) {
+      printLog("sound/bass: bass.dll using 5-param hook\n");
+      HookDLLFunction(&Real_BASS_Init,bassDll,"BASS_Init",Mine_BASS_Init);
+    }
+    else /* version 0x00060001 (1.6?) */ {
+      printLog("sound/bass: bass.dll using 4-param hook\n");
+      HookDLLFunction(&Real_BASS_Init4,bassDll,"BASS_Init",Mine_BASS_Init4);
+    }
+  }
   if(bassDll &&
-    HookDLLFunction(&Real_BASS_Init,bassDll,"BASS_Init",Mine_BASS_Init) &&
-    HookDLLFunction(&Real_BASS_GetInfo,bassDll,"BASS_GetInfo",Mine_BASS_GetInfo))
+     HookDLLFunction(&Real_BASS_GetInfo,bassDll,"BASS_GetInfo",Mine_BASS_GetInfo))
   {
     printLog("sound/bass: bass.dll found, BASS support enabled.\n");
   }

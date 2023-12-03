@@ -24,10 +24,16 @@
 #define IDC_POWERDOWN                   1025
 #define IDC_ENCODERTHREAD               1026
 #define IDC_CAPTUREGDI                  1027
-#define IDC_AUTOSKIP2                   1028
 #define IDC_AUTOSKIP_TIMER              1028
-#define IDC_ENCODERTHREAD2              1029
 #define IDC_VIRTFRAMEBUF                1029
+#define IDC_EXTRASCREENMODE             1030
+#define IDC_EXTRASCREENWIDTH            1031
+#define IDC_EXTRASCREENHEIGHT           1032
+#define IDC_EXTRASCREENX                1033
+#define IDC_SELFTEST                    1034
+#define IDC_FORCEDPIAWARE               1035
+#define IDC_PREVENTTOPMOST              1036
+#define IDC_MICROFRAMES                 1037
 
 // Next default values for new objects
 // 
@@ -35,7 +41,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        103
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1022
+#define _APS_NEXT_CONTROL_VALUE         1038
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

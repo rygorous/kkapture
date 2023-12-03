@@ -37,7 +37,7 @@ extern bool exitNextFrame;
 extern void *hModule;
 
 // parameter block submitted by main app
-static const int PARAMVERSION = 5;
+static const int PARAMVERSION = 6;
 
 enum EncoderType
 {
@@ -70,16 +70,33 @@ struct ParameterBlock
   DWORD FrameTimeout;
 
   BOOL IsDebugged;
+  BOOL IsSelfTest;
   BOOL PowerDownAfterwards;
   BOOL UseEncoderThread;
   BOOL EnableGDICapture;
   BOOL FrequentTimerCheck;
   BOOL VirtualFramebuffer;
+  BOOL ForceDPIAware;
+  BOOL PreventTopmostWindow; // prevent the demo window from setting topmost status so you can Alt+Tab away if you need your desktop back
+
+  BOOL ExtraScreenMode;
+  DWORD ExtraScreenWidth;
+  DWORD ExtraScreenHeight;
+
+  DWORD Microframes; // how many ticks per frame to emulate 
 
   DWORD CodecDataSize;
   UCHAR CodecSpecificData[16384];
 };
 
 extern ParameterBlock params;
+
+extern "C" __declspec(dllexport) void ST_init();
+extern "C" __declspec(dllexport) bool ST_initEncoder();
+extern "C" __declspec(dllexport) void ST_freeEncoder();
+extern "C" __declspec(dllexport) void ST_SetVideoSize(int xRes,int yRes);
+extern "C" __declspec(dllexport) void ST_SetAudioFormat(const struct tWAVEFORMATEX *fmt);
+extern "C" __declspec(dllexport) void ST_WriteFrame(const unsigned char *buffer);
+extern "C" __declspec(dllexport) void ST_WriteAudioFrame(const void *buffer,int samples);
 
 #endif

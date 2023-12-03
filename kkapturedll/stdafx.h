@@ -24,7 +24,7 @@
 
 #define _WIN32_WINNT 0x0501
 
-#include <hash_map>
+#include <unordered_map>
 
 #include <windows.h>
 #include "mhook-lib/mhook.h"

@@ -50,7 +50,7 @@ static GLenum useReadBuffer = GL_FRONT;
 // we keep track of active HDC/HGLRC pairs so kkapture can map HDCs passed to
 // SwapBuffers to rendering contexts (kkapture may need to temporarily switch
 // rendering context to perform readback).
-stdext::hash_map<HDC,HGLRC> rcFromDC;
+std::unordered_map<HDC,HGLRC> rcFromDC;
 
 // ---- gl framegrabbing code
 
@@ -98,7 +98,7 @@ static void captureGLFrame()
     glReadBuffer(oldReadBuffer);
 
     // encode
-    encoder->WriteFrame(captureData);
+    if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
   }
 }
 
@@ -142,15 +142,32 @@ static void finishSwapOnDC(HDC hdc,const HDC &oldDC,const HGLRC &oldRC)
 
 // ---- hooked API functions follow
 
+static LONG __stdcall Mine_ChangeDisplaySettings(LPDEVMODE lpDevMode,DWORD dwFlags)
+{
+  if (params.ExtraScreenMode) {
+    setCaptureResolution(params.ExtraScreenWidth, params.ExtraScreenHeight);
+    return DISP_CHANGE_SUCCESSFUL;
+  } else {
+    LONG result = Real_ChangeDisplaySettings(lpDevMode,dwFlags);
+    if(result == DISP_CHANGE_SUCCESSFUL && lpDevMode &&
+      (lpDevMode->dmFields & (DM_PELSWIDTH | DM_PELSHEIGHT)) == (DM_PELSWIDTH | DM_PELSHEIGHT))
+      setCaptureResolution(lpDevMode->dmPelsWidth,lpDevMode->dmPelsHeight);
+    return result;
+  }
+}
+
 static LONG __stdcall Mine_ChangeDisplaySettingsEx(LPCTSTR lpszDeviceName,LPDEVMODE lpDevMode,HWND hwnd,DWORD dwflags,LPVOID lParam)
 {
-  LONG result = Real_ChangeDisplaySettingsEx(lpszDeviceName,lpDevMode,hwnd,dwflags,lParam);
-
-  if(result == DISP_CHANGE_SUCCESSFUL && lpDevMode &&
-    (lpDevMode->dmFields & (DM_PELSWIDTH | DM_PELSHEIGHT)) == (DM_PELSWIDTH | DM_PELSHEIGHT))
-    setCaptureResolution(lpDevMode->dmPelsWidth,lpDevMode->dmPelsHeight);
-
-  return result;
+  if (params.ExtraScreenMode) {
+    setCaptureResolution(params.ExtraScreenWidth, params.ExtraScreenHeight);
+    return DISP_CHANGE_SUCCESSFUL;
+  } else {
+    LONG result = Real_ChangeDisplaySettingsEx(lpszDeviceName,lpDevMode,hwnd,dwflags,lParam);
+    if(result == DISP_CHANGE_SUCCESSFUL && lpDevMode &&
+      (lpDevMode->dmFields & (DM_PELSWIDTH | DM_PELSHEIGHT)) == (DM_PELSWIDTH | DM_PELSHEIGHT))
+      setCaptureResolution(lpDevMode->dmPelsWidth,lpDevMode->dmPelsHeight);
+    return result;
+  }
 }
 
 static HGLRC __stdcall Mine_wglCreateContext(HDC hdc)
@@ -216,7 +233,7 @@ static BOOL __stdcall Mine_wglSwapBuffers(HDC hdc)
 
   prepareSwapOnDC(hdc,olddc,oldrc);
   captureGLFrame();
-  nextFrame();
+  nextVideoFrame();
   finishSwapOnDC(hdc,olddc,oldrc);
 
   return Real_wglSwapBuffers(hdc);
@@ -231,7 +248,7 @@ static BOOL __stdcall Mine_wglSwapLayerBuffers(HDC hdc,UINT fuPlanes)
 
     prepareSwapOnDC(hdc,olddc,oldrc);
     captureGLFrame();
-    nextFrame();
+    nextVideoFrame();
     finishSwapOnDC(hdc,olddc,oldrc);
   }
 
@@ -240,6 +257,7 @@ static BOOL __stdcall Mine_wglSwapLayerBuffers(HDC hdc,UINT fuPlanes)
 
 void initVideo_OpenGL()
 {
+  HookFunction(&Real_ChangeDisplaySettings,Mine_ChangeDisplaySettings);
   HookFunction(&Real_ChangeDisplaySettingsEx,Mine_ChangeDisplaySettingsEx);
   HookFunction(&Real_wglCreateContext,Mine_wglCreateContext);
   HookFunction(&Real_wglCreateLayerContext,Mine_wglCreateLayerContext);

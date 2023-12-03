@@ -77,7 +77,7 @@ static void captureGDIFrame(unsigned char *buffer, int xres, int yres, CONST BIT
   }
 
   // encode
-  encoder->WriteFrame(captureData);
+  if ((getFrameTiming() % params.Microframes) == 0) encoder->WriteFrame(captureData);
 }
 
   // heuristic: if it's smaller than a certain size, we're not interested.
@@ -100,7 +100,7 @@ static void processDIBits(unsigned char *buffer,int xres,int yres,int xsrc,int y
       captureGDIFrame(buffer,xres,yres,bmi);
     }
 
-    nextFrame();
+    nextVideoFrame();
   }
 }
 
