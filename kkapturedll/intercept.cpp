@@ -181,13 +181,20 @@ int CreateInstrumentedProcessW(LPCWSTR appName,LPWSTR cmdLine,
   }
 }
 
+static bool ShouldPreventTopmost(DWORD dwExStyle,DWORD dwStyle,HWND hWndParent) {
+	if (hWndParent != NULL && hWndParent != GetDesktopWindow())
+		return false;
+
+	return true;
+}
+
 static HWND __stdcall Mine_CreateWindowExA(DWORD dwExStyle,LPCSTR lpClassName,LPCSTR lpWindowName,DWORD dwStyle,int X,int Y,int nWidth,int nHeight,HWND hWndParent,HMENU hMenu,HINSTANCE hInstance,LPVOID lpParam) {
-	if (params.PreventTopmostWindow) dwExStyle &= ~WS_EX_TOPMOST;
+	if (params.PreventTopmostWindow && ShouldPreventTopmost(dwExStyle,dwStyle,hWndParent)) dwExStyle &= ~WS_EX_TOPMOST;
 	return Real_CreateWindowExA(dwExStyle,lpClassName,lpWindowName,dwStyle,X,Y,nWidth,nHeight,hWndParent,hMenu,hInstance,lpParam);
 }
 
 static HWND __stdcall Mine_CreateWindowExW(DWORD dwExStyle,LPCWSTR lpClassName,LPCWSTR lpWindowName,DWORD dwStyle,int X,int Y,int nWidth,int nHeight,HWND hWndParent,HMENU hMenu,HINSTANCE hInstance,LPVOID lpParam) {
-	if (params.PreventTopmostWindow) dwExStyle &= ~WS_EX_TOPMOST;
+	if (params.PreventTopmostWindow && ShouldPreventTopmost(dwExStyle,dwStyle,hWndParent)) dwExStyle &= ~WS_EX_TOPMOST;
 	return Real_CreateWindowExW(dwExStyle,lpClassName,lpWindowName,dwStyle,X,Y,nWidth,nHeight,hWndParent,hMenu,hInstance,lpParam);
 }
 
